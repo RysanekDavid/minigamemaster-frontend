@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; // Import useEffect and useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -12,16 +12,31 @@ import {
   Avatar,
   Box,
   Typography,
-  CircularProgress, // For loading state on buttons
-  Divider, // To separate sections
-  FormControlLabel, // Import FormControlLabel
-  Checkbox, // Import Checkbox
+  CircularProgress,
+  Divider,
+  FormControlLabel,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+  ListItemText,
 } from "@mui/material";
 import GamepadIcon from "@mui/icons-material/SportsEsports";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
+import SaveIcon from "@mui/icons-material/Save";
+import AutoStartIcon from "@mui/icons-material/Autorenew";
+import DisableAutoStartIcon from "@mui/icons-material/CancelScheduleSend";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-// Define a more specific config type for clarity
+// Import the new wizard component
+import { CreateGameWizard } from "./CreateGameWizard";
+
+// Define a more specific config type for clarity in component state
 interface GuessTheNumberConfigState {
   minNumber: number;
   maxNumber: number;
@@ -29,12 +44,17 @@ interface GuessTheNumberConfigState {
   autoStartIntervalMinutes?: number | string; // Allow string for empty input
 }
 
+// Type for the config object sent/received from the API
+interface GameConfigPayload {
+  minNumber?: number;
+  maxNumber?: number;
+  autoStartEnabled?: boolean;
+  autoStartIntervalMinutes?: number | null; // Backend uses null for empty interval
+}
+
 interface GameManagementProps {
-  // Remove config and onSave props as the component handles its own state and API calls
-  // Game control functions
   onStartGame: (gameId: string, options: any) => Promise<void>;
   onStopGame: () => Promise<void>;
-  // Initial status
   initialGameStatus: {
     isActive: boolean;
     name?: string;
@@ -43,57 +63,98 @@ interface GameManagementProps {
 }
 
 export const GameManagement: React.FC<GameManagementProps> = ({
-  // Remove initialConfig and onSave from destructuring
   onStartGame,
   onStopGame,
   initialGameStatus,
 }) => {
-  // Config state - manage the full config object for the selected game
-  const [selectedGame, setSelectedGame] = useState("guess-the-number"); // Set default directly
-  // Use a state object for the specific game's config
-  // Initialize state directly, not from props
+  const [selectedGame, setSelectedGame] = useState("guess-the-number");
   const [guessConfig, setGuessConfig] = useState<GuessTheNumberConfigState>({
-    minNumber: 1, // Default value
-    maxNumber: 100, // Default value
-    autoStartEnabled: false, // Default value
-    autoStartIntervalMinutes: 15, // Default value
+    minNumber: 1,
+    maxNumber: 100,
+    autoStartEnabled: false,
+    autoStartIntervalMinutes: 15,
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatusMessage, setSaveStatusMessage] = useState("");
-
-  // Game status and control state
   const [gameStatus, setGameStatus] = useState(initialGameStatus);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [savedAutoStartEnabled, setSavedAutoStartEnabled] =
-    useState<boolean>(false); // State for saved auto-start status
-  const [isFetchingConfig, setIsFetchingConfig] = useState<boolean>(true); // Loading state for config fetch
+    useState<boolean>(false);
+  const [isFetchingConfig, setIsFetchingConfig] = useState<boolean>(true);
+  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false); // State for wizard visibility
+  const [aiGeneratedGames, setAiGeneratedGames] = useState<any[]>([]); // Store AI-generated games
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [gameToDelete, setGameToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  // --- Utility to convert state interval to payload interval ---
+  const getIntervalForPayload = (
+    interval: number | string | undefined
+  ): number | null => {
+    if (interval === "" || typeof interval === "undefined") {
+      return null;
+    }
+    const num = Number(interval);
+    return isNaN(num) ? null : num;
+  };
+
+  // --- Utility to convert payload interval back to state interval ---
+  const getIntervalForState = (
+    interval: number | null | undefined
+  ): string | number => {
+    if (interval === null || typeof interval === "undefined") {
+      return ""; // Use empty string for state if null/undefined from backend
+    }
+    return interval; // Keep as number if it exists
+  };
+
+  // --- Fetch AI-Generated Games ---
+  const fetchAiGeneratedGames = useCallback(async () => {
+    try {
+      const response = await fetch("/api/games/definitions", {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch game definitions: ${response.statusText}`
+        );
+      }
+      const data = await response.json();
+      setAiGeneratedGames(data);
+      console.log("Fetched AI-generated games:", data);
+    } catch (error) {
+      console.error("Error fetching AI-generated games:", error);
+    }
+  }, []);
 
   // --- Fetch Config Effect ---
   const fetchGameConfig = useCallback(async () => {
     setIsFetchingConfig(true);
-    setSaveStatusMessage(""); // Clear save status on new fetch
+    setSaveStatusMessage("");
     try {
       const response = await fetch(`/api/games/config/${selectedGame}`, {
-        credentials: "include", // Include cookies for authentication
+        credentials: "include",
       });
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`Failed to fetch config: ${response.statusText}`);
-      }
       const data = await response.json();
       if (data && data.config) {
-        // Update the form state with fetched config
+        const fetchedConfig = data.config as GameConfigPayload;
         setGuessConfig({
-          minNumber: data.config.minNumber ?? 1,
-          maxNumber: data.config.maxNumber ?? 100,
-          autoStartEnabled: data.config.autoStartEnabled ?? false,
-          autoStartIntervalMinutes: data.config.autoStartIntervalMinutes ?? 15,
+          minNumber: fetchedConfig.minNumber ?? 1,
+          maxNumber: fetchedConfig.maxNumber ?? 100,
+          autoStartEnabled: fetchedConfig.autoStartEnabled ?? false,
+          autoStartIntervalMinutes: getIntervalForState(
+            fetchedConfig.autoStartIntervalMinutes
+          ), // Convert for state
         });
-        // Update the separate state for the saved auto-start status
-        setSavedAutoStartEnabled(data.config.autoStartEnabled ?? false);
+        setSavedAutoStartEnabled(fetchedConfig.autoStartEnabled ?? false);
       } else {
-        // Reset to defaults if no config found or invalid data
         setGuessConfig({
           minNumber: 1,
           maxNumber: 100,
@@ -109,7 +170,6 @@ export const GameManagement: React.FC<GameManagementProps> = ({
           ? `Error loading config: ${error.message}`
           : "Error loading config"
       );
-      // Reset to defaults on error
       setGuessConfig({
         minNumber: 1,
         maxNumber: 100,
@@ -120,36 +180,158 @@ export const GameManagement: React.FC<GameManagementProps> = ({
     } finally {
       setIsFetchingConfig(false);
     }
-  }, [selectedGame]); // Re-fetch when selectedGame changes
+  }, [selectedGame]);
 
   useEffect(() => {
     fetchGameConfig();
-  }, [fetchGameConfig]); // Run fetchGameConfig on mount and when it changes (due to selectedGame change)
+    fetchAiGeneratedGames();
+  }, [fetchGameConfig, fetchAiGeneratedGames]);
+
+  // --- Handle AI Game Created ---
+  const handleGameCreated = useCallback((gameDefinition: any) => {
+    console.log("New game created:", gameDefinition);
+    // Add the new game to the list
+    setAiGeneratedGames((prev) => [gameDefinition, ...prev]);
+    // Optionally, you could select the new game here
+    // setSelectedGame(gameDefinition.id);
+  }, []);
+
+  // --- Handle Delete Game ---
+  const handleDeleteClick = (game: any) => {
+    setGameToDelete({
+      id: game.definitionId || game.id,
+      name: game.name,
+    });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!gameToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(
+        `/api/games/definitions/${gameToDelete.id}/delete`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Failed to delete game: ${response.status} ${response.statusText} - ${
+            errorData.message || "Unknown error"
+          }`
+        );
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove the deleted game from the list
+        setAiGeneratedGames((prev) =>
+          prev.filter(
+            (game) => (game.definitionId || game.id) !== gameToDelete.id
+          )
+        );
+
+        // If the deleted game was selected, reset to default game
+        if (selectedGame === gameToDelete.id) {
+          setSelectedGame("guess-the-number");
+        }
+
+        setSaveStatusMessage("Game deleted successfully");
+      } else {
+        setSaveStatusMessage(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error deleting game:", error);
+      setSaveStatusMessage(
+        error instanceof Error
+          ? `Error: ${error.message}`
+          : "Failed to delete game."
+      );
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setGameToDelete(null);
+    }
+  };
 
   // --- Handlers ---
 
-  const handleSaveConfig = async () => {
+  // NEW: Handler to save only Min/Max numbers
+  const handleSaveBaseConfig = async () => {
     setIsSaving(true);
     setSaveStatusMessage("");
-    console.log("Saving config for:", selectedGame, guessConfig); // Keep console log for debugging
 
-    // Prepare the payload for the backend API
-    // Ensure interval is a number or null before sending
-    const configToSend = {
-      ...guessConfig,
-      autoStartIntervalMinutes:
-        guessConfig.autoStartIntervalMinutes === "" ||
-        guessConfig.autoStartIntervalMinutes === undefined
-          ? null // Send null if empty or undefined
-          : Number(guessConfig.autoStartIntervalMinutes), // Convert valid string/number to number
+    // Only send min/max numbers
+    const configToSend: Partial<GameConfigPayload> = {
+      // Use Partial<>
+      minNumber: guessConfig.minNumber,
+      maxNumber: guessConfig.maxNumber,
     };
 
-    // Validate interval if autoStart is enabled
-    if (
-      configToSend.autoStartEnabled &&
-      (configToSend.autoStartIntervalMinutes === null ||
-        configToSend.autoStartIntervalMinutes < 3)
-    ) {
+    const payload = {
+      gameId: selectedGame,
+      config: selectedGame === "guess-the-number" ? configToSend : {},
+    };
+
+    try {
+      const response = await fetch("/api/games/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Failed to save base configuration: ${response.status} ${
+            response.statusText
+          } - ${errorData.message || "Unknown error"}`
+        );
+      }
+      const result = await response.json();
+      setSaveStatusMessage(
+        result.message || "Base configuration saved successfully!"
+      );
+      // Re-fetch config to ensure UI consistency, especially if backend modified other fields
+      fetchGameConfig();
+    } catch (error) {
+      setSaveStatusMessage(
+        error instanceof Error
+          ? `Error: ${error.message}`
+          : "Failed to save base game configuration."
+      );
+      console.error("Error saving base game config:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // NEW: Handler to save ALL settings including enabling Auto-Start
+  const handleSaveWithAutoStart = async () => {
+    setIsSaving(true);
+    setSaveStatusMessage("");
+
+    const currentIntervalForPayload = getIntervalForPayload(
+      guessConfig.autoStartIntervalMinutes
+    );
+
+    // Send all config, explicitly enabling autoStart
+    const configToSend: GameConfigPayload = {
+      minNumber: guessConfig.minNumber,
+      maxNumber: guessConfig.maxNumber,
+      autoStartEnabled: true, // Explicitly true
+      autoStartIntervalMinutes: currentIntervalForPayload,
+    };
+
+    // Validate interval since autoStart is being enabled
+    const interval = configToSend.autoStartIntervalMinutes; // Type is number | null
+    // Check for undefined, null, or less than 3
+    if (typeof interval === "undefined" || interval === null || interval < 3) {
       setSaveStatusMessage(
         "Error: Auto-start interval must be 3 minutes or more."
       );
@@ -159,50 +341,87 @@ export const GameManagement: React.FC<GameManagementProps> = ({
 
     const payload = {
       gameId: selectedGame,
-      config: selectedGame === "guess-the-number" ? configToSend : {}, // Send the processed config
+      config: selectedGame === "guess-the-number" ? configToSend : {},
     };
 
     try {
-      // Use fetch API to send the config to the backend
       const response = await fetch("/api/games/config", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Add authentication headers if needed
-        },
-        body: JSON.stringify(payload), // Send the correct payload structure
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          `Failed to save configuration: ${response.status} ${
+          `Failed to save configuration with auto-start: ${response.status} ${
             response.statusText
           } - ${errorData.message || "Unknown error"}`
         );
       }
-
       const result = await response.json();
       setSaveStatusMessage(
         result.message || "Configuration saved successfully!"
       );
-      // After successful save, update the savedAutoStartEnabled state only if it's the relevant game
-      if (payload.gameId === "guess-the-number" && payload.config) {
-        setSavedAutoStartEnabled(
-          (payload.config as GuessTheNumberConfigState).autoStartEnabled ??
-            false
-        );
-      } else {
-        // If saving config for a different game, assume auto-start is off for the indicator
-        setSavedAutoStartEnabled(false);
-      }
+      // Update saved state since we know auto-start was just enabled
+      setSavedAutoStartEnabled(true);
     } catch (error) {
       setSaveStatusMessage(
         error instanceof Error
           ? `Error: ${error.message}`
           : "Failed to save game configuration."
       );
-      console.error("Error saving game config:", error);
+      console.error("Error saving game config with auto-start:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDisableAutoStart = async () => {
+    setIsSaving(true);
+    setSaveStatusMessage("");
+    console.log("Disabling auto-start for:", selectedGame);
+
+    // Prepare payload with autoStart disabled and null interval
+    const configToDisable: GameConfigPayload = {
+      minNumber: guessConfig.minNumber,
+      maxNumber: guessConfig.maxNumber,
+      autoStartEnabled: false,
+      autoStartIntervalMinutes: null, // Send null when disabling
+    };
+    const payload = { gameId: selectedGame, config: configToDisable };
+
+    try {
+      const response = await fetch("/api/games/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Failed to disable auto-start: ${response.status} ${
+            response.statusText
+          } - ${errorData.message || "Unknown error"}`
+        );
+      }
+      const result = await response.json();
+      setSaveStatusMessage(
+        result.message || "Auto-start disabled successfully!"
+      );
+      // Update form state to reflect disabled status
+      setGuessConfig((prev) => ({
+        ...prev,
+        autoStartEnabled: false,
+        autoStartIntervalMinutes: "", // Set interval to empty string in state
+      }));
+      setSavedAutoStartEnabled(false);
+    } catch (error) {
+      setSaveStatusMessage(
+        error instanceof Error
+          ? `Error: ${error.message}`
+          : "Failed to disable auto-start."
+      );
+      console.error("Error disabling auto-start:", error);
     } finally {
       setIsSaving(false);
     }
@@ -212,17 +431,19 @@ export const GameManagement: React.FC<GameManagementProps> = ({
     setIsActionLoading(true);
     setActionError(null);
     try {
-      // Pass the current config state as options when starting
-      const options = selectedGame === "guess-the-number" ? guessConfig : {};
+      // Only pass min/max when starting manually
+      const optionsToSend: Partial<GameConfigPayload> = {
+        minNumber: guessConfig.minNumber,
+        maxNumber: guessConfig.maxNumber,
+      };
+      const options = selectedGame === "guess-the-number" ? optionsToSend : {};
       await onStartGame(selectedGame, options);
-      // Optimistically update status or re-fetch (simple update for now)
       setGameStatus({ isActive: true, name: selectedGame });
     } catch (err) {
       console.error("Error starting game:", err);
       setActionError(
         err instanceof Error ? err.message : "Failed to start game"
       );
-      // Ensure status reflects failure if possible
       setGameStatus({ isActive: false });
     } finally {
       setIsActionLoading(false);
@@ -234,14 +455,21 @@ export const GameManagement: React.FC<GameManagementProps> = ({
     setActionError(null);
     try {
       await onStopGame();
-      // Optimistically update status or re-fetch (simple update for now)
       setGameStatus({ isActive: false });
+      // If auto-start was enabled, disable it via save
+      if (savedAutoStartEnabled) {
+        console.log(
+          "Auto-start was enabled, disabling it now after stopping game."
+        );
+        await handleDisableAutoStart(); // This saves config with autoStart: false
+      } else {
+        fetchGameConfig(); // Re-fetch config if auto-start wasn't involved
+      }
     } catch (err) {
       console.error("Error stopping game:", err);
       setActionError(
         err instanceof Error ? err.message : "Failed to stop game"
       );
-      // Status might still be active if stop failed, ideally re-fetch
     } finally {
       setIsActionLoading(false);
     }
@@ -249,6 +477,8 @@ export const GameManagement: React.FC<GameManagementProps> = ({
 
   // --- Render ---
   const isGameActive = gameStatus?.isActive ?? false;
+  const disableConfigInputs = isGameActive || isFetchingConfig;
+  const disableActions = isActionLoading || isFetchingConfig;
 
   return (
     <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -260,6 +490,16 @@ export const GameManagement: React.FC<GameManagementProps> = ({
         }
         title="Game Management"
         subheader="Start, stop, and configure mini-games"
+        action={
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => setIsWizardOpen(true)} // Open the wizard
+            sx={{ mr: 1 }}
+          >
+            New Game
+          </Button>
+        }
       />
       {/* Game Status and Controls Section */}
       <CardContent sx={{ flexGrow: 0 }}>
@@ -273,19 +513,19 @@ export const GameManagement: React.FC<GameManagementProps> = ({
               height: 12,
               borderRadius: "50%",
               bgcolor:
-                isGameActive || savedAutoStartEnabled // Green if active OR auto-start is on
+                isGameActive || savedAutoStartEnabled
                   ? "success.main"
-                  : "grey.500", // Grey only if inactive AND auto-start is off
+                  : "grey.500",
               transition: "background-color 0.3s ease",
             }}
           />
           <Typography variant="body1">
-            {isActionLoading
+            {isActionLoading && !isSaving
               ? "Processing..."
               : isGameActive
               ? `Active: ${gameStatus?.name || "Unknown Game"}`
-              : savedAutoStartEnabled // Check saved state when inactive
-              ? "Auto-start enabled" // Indicate auto-start is waiting
+              : savedAutoStartEnabled
+              ? "Auto-start enabled"
               : "No game active"}
           </Typography>
         </Box>
@@ -306,7 +546,8 @@ export const GameManagement: React.FC<GameManagementProps> = ({
               )
             }
             onClick={handleStartGame}
-            disabled={isGameActive || isActionLoading}
+            // Disable Start if game active OR if SAVED auto-start is enabled (Autostart handles starting)
+            disabled={isGameActive || savedAutoStartEnabled || disableActions}
             sx={{ flexGrow: 1 }}
           >
             Start Game
@@ -322,7 +563,8 @@ export const GameManagement: React.FC<GameManagementProps> = ({
               )
             }
             onClick={handleStopGame}
-            disabled={!isGameActive || isActionLoading}
+            // Disable Stop if game is NOT active OR if SAVED auto-start is enabled (Stop is only for manual games)
+            disabled={!isGameActive || savedAutoStartEnabled || disableActions}
             sx={{ flexGrow: 1 }}
           >
             Stop Game
@@ -338,7 +580,7 @@ export const GameManagement: React.FC<GameManagementProps> = ({
           Game Configuration
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth size="small" disabled={disableConfigInputs}>
             <InputLabel id="game-config-select-label">
               Select Game to Configure
             </InputLabel>
@@ -347,21 +589,60 @@ export const GameManagement: React.FC<GameManagementProps> = ({
               id="game-config-select"
               value={selectedGame}
               label="Select Game to Configure"
-              onChange={(e) => {
-                setSelectedGame(e.target.value);
-                // Reset specific config when changing game if needed
-              }}
-              disabled={isGameActive} // Disable config while game is active? Or allow? For now, disable.
+              onChange={(e) => setSelectedGame(e.target.value)}
+              disabled={disableConfigInputs}
             >
               <MenuItem value="guess-the-number">Guess the Number</MenuItem>
-              {/* Add other games here */}
+              {/* Add AI-generated games to the dropdown */}
+              {aiGeneratedGames.map((game) => {
+                const gameId = game.definitionId || game.id;
+                return (
+                  <MenuItem
+                    key={gameId}
+                    value={gameId}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      position: "relative",
+                      pr: 6, // Add padding for the delete button
+                    }}
+                  >
+                    <ListItemText primary={`${game.name} (AI-Generated)`} />
+                    {/* Only show delete button when dropdown is open and not when selected */}
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        // This ensures the button is only visible in the dropdown
+                        // and not when the item is selected and shown in the select box
+                        display: "inline-flex",
+                        ".MuiSelect-select &": { display: "none" },
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent selecting the game when clicking delete
+                          e.preventDefault();
+                          handleDeleteClick(game);
+                        }}
+                        sx={{
+                          "&:hover": { color: "error.main" },
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
 
-          {/* --- Config fields for Guess the Number --- */}
-          {selectedGame === "guess-the-number" && !isGameActive && (
+          {selectedGame === "guess-the-number" && (
             <>
-              {/* Min Number */}
               <TextField
                 id="config-min-number"
                 label="Min Number (1-999)"
@@ -376,14 +657,14 @@ export const GameManagement: React.FC<GameManagementProps> = ({
                   setGuessConfig((prev) => ({
                     ...prev,
                     minNumber: newMin,
-                    maxNumber: Math.max(newMin + 1, prev.maxNumber), // Adjust max if needed
+                    maxNumber: Math.max(newMin + 1, prev.maxNumber),
                   }));
                 }}
                 fullWidth
                 variant="outlined"
                 size="small"
+                disabled={disableConfigInputs}
               />
-              {/* Max Number */}
               <TextField
                 id="config-max-number"
                 label={`Max Number (${guessConfig.minNumber + 1}-1000)`}
@@ -402,50 +683,58 @@ export const GameManagement: React.FC<GameManagementProps> = ({
                 fullWidth
                 variant="outlined"
                 size="small"
+                disabled={disableConfigInputs}
               />
-              {/* Auto-Start Checkbox */}
+              {/* --- Button to save only Min/Max --- */}
+              <Button
+                variant="contained"
+                color="secondary" // Standard save color
+                startIcon={<SaveIcon />}
+                onClick={handleSaveBaseConfig} // Use the new handler
+                disabled={isSaving || isGameActive || isFetchingConfig}
+                sx={{ mt: 1 }} // Add some margin
+              >
+                {isSaving ? "Saving..." : "Save Min/Max Config"}
+              </Button>
+              {/* --- End Button to save only Min/Max --- */}
+
               <FormControlLabel
                 control={
                   <Checkbox
                     id="auto-start-enabled"
                     checked={guessConfig.autoStartEnabled ?? false}
-                    onChange={(
-                      e: React.ChangeEvent<HTMLInputElement> // Explicitly type 'e'
-                    ) =>
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       setGuessConfig((prev) => ({
                         ...prev,
                         autoStartEnabled: e.target.checked,
                       }))
                     }
                     size="small"
+                    disabled={disableConfigInputs}
                   />
                 }
                 label="Enable Automatic Game Start"
-                sx={{ mt: 1 }} // Add some margin
+                sx={{ mt: 1 }}
               />
-              {/* Auto-Start Interval (Conditional) */}
               {guessConfig.autoStartEnabled && (
                 <TextField
                   id="auto-start-interval"
-                  label="Start Interval (minutes, 3-1440)" // Update label
+                  label="Start Interval (minutes, 3-1440)"
                   type="number"
-                  InputProps={{ inputProps: { min: 3, max: 1440 } }} // Update min prop
-                  // Use empty string for value if undefined/null to allow deletion
+                  InputProps={{ inputProps: { min: 3, max: 1440 } }}
                   value={guessConfig.autoStartIntervalMinutes ?? ""}
                   onChange={(e) => {
                     const rawValue = e.target.value;
-                    // Allow empty input temporarily
                     if (rawValue === "") {
                       setGuessConfig((prev) => ({
                         ...prev,
-                        autoStartIntervalMinutes: "", // Set to empty string
+                        autoStartIntervalMinutes: "",
                       }));
                     } else {
                       const val = parseInt(rawValue, 10);
-                      // Validate and clamp the number, default to 3 if invalid
                       const clampedVal = isNaN(val)
                         ? 3
-                        : Math.max(3, Math.min(1440, val)); // Use 3 as min
+                        : Math.max(3, Math.min(1440, val));
                       setGuessConfig((prev) => ({
                         ...prev,
                         autoStartIntervalMinutes: clampedVal,
@@ -455,28 +744,48 @@ export const GameManagement: React.FC<GameManagementProps> = ({
                   fullWidth
                   variant="outlined"
                   size="small"
-                  disabled={!guessConfig.autoStartEnabled}
+                  disabled={
+                    !guessConfig.autoStartEnabled || disableConfigInputs
+                  }
                 />
               )}
             </>
           )}
-          {/* --- End Guess the Number Config --- */}
 
-          {/* Add config sections for other games here */}
+          {/* --- Conditional Save/Action Buttons for Auto-Start --- */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
+            {/* "Save Config & Auto-Start Settings" button - Green, visible only when checkbox IS checked */}
+            {guessConfig.autoStartEnabled && (
+              <Button
+                variant="contained"
+                color="success" // Keep green
+                startIcon={<AutoStartIcon />}
+                onClick={handleSaveWithAutoStart} // Use the new handler
+                disabled={isSaving || isGameActive || isFetchingConfig}
+              >
+                {isSaving ? "Saving..." : "Save Config & Auto-Start Settings"}
+              </Button>
+            )}
 
-          {/* Save Config Button */}
-          <Button
-            variant="contained"
-            color="secondary" // Different color for config save
-            onClick={handleSaveConfig}
-            disabled={isSaving || isGameActive} // Disable if saving or game active
-            sx={{ mt: 1 }} // Add some margin
-          >
-            {isSaving ? "Saving Config..." : "Save Config"}
-          </Button>
+            {/* "Disable Auto-Start" button - visible only if saved config has it enabled AND game is inactive */}
+            {/* This button remains to explicitly disable a saved auto-start without stopping an active game */}
+            {savedAutoStartEnabled && !isGameActive && (
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<DisableAutoStartIcon />}
+                onClick={handleDisableAutoStart}
+                disabled={isSaving || isFetchingConfig}
+              >
+                {isSaving ? "Saving..." : "Disable Auto-Start"}
+              </Button>
+            )}
+          </Box>
+          {/* --- End Conditional Auto-Start Buttons --- */}
+
           {saveStatusMessage && (
             <Typography
-              variant="caption" // Smaller text for status
+              variant="caption"
               color={
                 saveStatusMessage.startsWith("Error") ? "error" : "success.main"
               }
@@ -487,7 +796,53 @@ export const GameManagement: React.FC<GameManagementProps> = ({
           )}
         </Box>
       </CardContent>
-      {/* Removed separate CardActions for config save */}
+
+      {/* Render the Wizard Dialog */}
+      <CreateGameWizard
+        open={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onGameCreated={handleGameCreated}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteDialogOpen}
+        onClose={() => !isDeleting && setIsDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Delete AI-Generated Game
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Are you sure you want to delete the game "{gameToDelete?.name}"?
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setIsDeleteDialogOpen(false)}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            disabled={isDeleting}
+            startIcon={
+              isDeleting ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <DeleteIcon />
+              )
+            }
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 };

@@ -1,145 +1,243 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useMemo,
-} from "react";
+import React from "react";
 import {
   ThemeProvider as MUIThemeProvider,
   createTheme,
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { purple } from "@mui/material/colors";
-import useMediaQuery from "@mui/material/useMediaQuery";
 
-type ThemeMode = "dark" | "light" | "system";
-
-// Define the shape of the context state
-interface ThemeContextProps {
-  themeMode: ThemeMode;
-  setThemeMode: (mode: ThemeMode) => void;
-  toggleThemeMode: () => void; // Helper to easily switch between light/dark
-}
-
-// Create the context with a default value
-const ThemeContext = createContext<ThemeContextProps>({
-  themeMode: "system",
-  setThemeMode: () => console.warn("setThemeMode function not ready"),
-  toggleThemeMode: () => console.warn("toggleThemeMode function not ready"),
+// Create a theme based on the inspiration code
+const theme = createTheme({
+  palette: {
+    mode: "light",
+    primary: {
+      main: "#5e35b1", // deep purple
+      light: "#9162e4",
+      dark: "#280680",
+      contrastText: "#ffffff",
+    },
+    secondary: {
+      main: "#00b0ff", // light blue
+      light: "#69e2ff",
+      dark: "#0081cb",
+      contrastText: "#ffffff",
+    },
+    error: {
+      main: "#f44336",
+      light: "#ffcdd2",
+      dark: "#d32f2f",
+    },
+    success: {
+      main: "#4caf50",
+      light: "#c8e6c9",
+      dark: "#2e7d32",
+    },
+    warning: {
+      main: "#ff9800",
+      light: "#ffe0b2",
+      dark: "#ef6c00",
+    },
+    info: {
+      main: "#2196f3",
+      light: "#bbdefb",
+      dark: "#0d47a1",
+    },
+    background: {
+      default: "#f5f5f5",
+      paper: "#ffffff",
+    },
+    text: {
+      primary: "#212121",
+      secondary: "#757575",
+    },
+    divider: "rgba(0, 0, 0, 0.08)",
+  },
+  typography: {
+    fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+    h4: {
+      fontWeight: 600,
+    },
+    h5: {
+      fontWeight: 600,
+    },
+    h6: {
+      fontWeight: 600,
+    },
+    subtitle1: {
+      fontWeight: 500,
+    },
+    subtitle2: {
+      fontWeight: 500,
+    },
+  },
+  shape: {
+    borderRadius: 10,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          fontWeight: 600,
+          padding: "8px 16px",
+          boxShadow: "none",
+          "&:hover": {
+            boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+          },
+        },
+        containedPrimary: {
+          background: "linear-gradient(45deg, #5e35b1 30%, #7c4dff 90%)",
+        },
+        containedSecondary: {
+          background: "linear-gradient(45deg, #00b0ff 30%, #40c4ff 90%)",
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
+          overflow: "visible",
+          height: "100%", // Keep height 100% for consistency if needed
+          display: "flex", // Keep flex display if needed
+          flexDirection: "column", // Keep flex direction if needed
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: 24,
+          "&:last-child": {
+            paddingBottom: 24,
+          },
+          flexGrow: 1, // Keep flexGrow if needed
+        },
+      },
+    },
+    MuiCardActions: {
+      styleOverrides: {
+        root: {
+          padding: "0 24px 24px",
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#280680", // dark purple
+          color: "#ffffff",
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          margin: "4px 8px",
+          "&.Mui-selected": {
+            backgroundColor: "rgba(255, 255, 255, 0.16)",
+            "&:hover": {
+              backgroundColor: "rgba(255, 255, 255, 0.24)",
+            },
+          },
+          "&:hover": {
+            backgroundColor: "rgba(255, 255, 255, 0.08)",
+          },
+        },
+      },
+    },
+    MuiListItemIcon: {
+      styleOverrides: {
+        root: {
+          color: "inherit",
+          minWidth: 40,
+        },
+      },
+    },
+    MuiAvatar: {
+      styleOverrides: {
+        root: {
+          boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          "& .MuiOutlinedInput-root": {
+            borderRadius: 8,
+          },
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        outlined: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiSwitch: {
+      styleOverrides: {
+        root: {
+          width: 42,
+          height: 26,
+          padding: 0,
+        },
+        switchBase: {
+          padding: 1,
+          "&.Mui-checked": {
+            transform: "translateX(16px)",
+            color: "#fff",
+            "& + .MuiSwitch-track": {
+              opacity: 1,
+              backgroundColor: "#5e35b1",
+            },
+          },
+        },
+        thumb: {
+          width: 24,
+          height: 24,
+        },
+        track: {
+          borderRadius: 13,
+          opacity: 1,
+          backgroundColor: "#757575",
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          fontWeight: 500,
+        },
+      },
+    },
+    // Keep other component overrides from the original file if they are still relevant
+    // MuiAppBar: { ... } // Example: Keep if you still need specific AppBar styles not covered by the new theme
+  },
 });
-
-export const useThemeContext = () => useContext(ThemeContext);
 
 interface CustomThemeProviderProps {
   children: React.ReactNode;
-  defaultTheme?: ThemeMode;
 }
 
+// Simplified Theme Provider using the static theme
 export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({
   children,
-  defaultTheme = "system",
 }) => {
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    // Initialize state from localStorage or default
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("themeMode") as ThemeMode) || defaultTheme;
-    }
-    return defaultTheme;
-  });
-  const [mounted, setMounted] = useState(false);
-  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-
-  useEffect(() => {
-    setMounted(true);
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    const systemTheme = prefersDarkMode ? "dark" : "light";
-    const currentMode = themeMode === "system" ? systemTheme : themeMode;
-    root.classList.add(currentMode);
-  }, [themeMode, prefersDarkMode]);
-
-  const handleSetThemeMode = (mode: ThemeMode) => {
-    setThemeMode(mode);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("themeMode", mode);
-    }
-  };
-
-  const toggleThemeMode = () => {
-    const systemTheme = prefersDarkMode ? "dark" : "light";
-    const currentMode = themeMode === "system" ? systemTheme : themeMode;
-    handleSetThemeMode(currentMode === "dark" ? "light" : "dark");
-  };
-
-  // Determine the actual MUI mode ('light' or 'dark')
-  const muiMode = useMemo(() => {
-    if (themeMode === "system") {
-      return prefersDarkMode ? "dark" : "light";
-    }
-    return themeMode;
-  }, [themeMode, prefersDarkMode]);
-
-  // Create the MUI theme based on the mode
-  const muiTheme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: muiMode,
-          primary: {
-            // Using purple similar to the template's primary color
-            main: purple[500],
-            light: purple[300], // Added for avatar backgrounds etc.
-            contrastText: "#fff", // Ensure text is readable on primary
-          },
-          secondary: {
-            main: "#f50057", // Example secondary
-          },
-          background: {
-            default: muiMode === "dark" ? "#121212" : "#f5f5f5", // Darker/Lighter backgrounds
-            paper: muiMode === "dark" ? "#1e1e1e" : "#ffffff",
-          },
-        },
-        typography: {
-          fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-        },
-        components: {
-          // Example: Style AppBar to match template's primary color
-          MuiAppBar: {
-            styleOverrides: {
-              root: ({ theme }) => ({
-                backgroundColor: theme.palette.primary.main, // Use theme's primary
-                color: theme.palette.primary.contrastText, // Ensure contrast
-              }),
-            },
-          },
-          // Add Card override for border radius
-          MuiCard: {
-            styleOverrides: {
-              root: {
-                borderRadius: "12px", // Increased border radius
-              },
-            },
-          },
-          // Add other component overrides if needed
-        },
-      }),
-    [muiMode]
-  );
-
-  // Prevent rendering until mounted to avoid hydration issues
-  if (!mounted) {
-    return null; // Or a loading spinner/placeholder
-  }
-
   return (
-    <ThemeContext.Provider
-      value={{ themeMode, setThemeMode: handleSetThemeMode, toggleThemeMode }}
-    >
-      <MUIThemeProvider theme={muiTheme}>
-        <CssBaseline />
-        {children}
-      </MUIThemeProvider>
-    </ThemeContext.Provider>
+    <MUIThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </MUIThemeProvider>
   );
 };
+
+// Export a dummy context hook to avoid breaking imports, though it won't do anything
+// You might need to refactor components that were using the old context
+export const useThemeContext = () => ({
+  themeMode: "light", // Always light now
+  setThemeMode: () => {},
+  toggleThemeMode: () => {},
+});

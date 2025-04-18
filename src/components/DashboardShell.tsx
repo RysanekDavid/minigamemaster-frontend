@@ -1,125 +1,62 @@
-import React, { useState, useEffect } from "react"; // Import useEffect
-import { styled, useTheme } from "@mui/material/styles";
+import React, { useState } from "react"; // Removed useEffect, useTheme
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import List from "@mui/material/List";
 import Typography from "@mui/material/Typography";
-import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Avatar from "@mui/material/Avatar";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import MenuIcon from "@mui/icons-material/Menu";
+import { useTheme } from "@mui/material/styles"; // Keep useTheme for media query
+
+// Icons from inspiration
 import HomeIcon from "@mui/icons-material/Home";
-import SettingsIcon from "@mui/icons-material/Settings";
-import BarChartIcon from "@mui/icons-material/BarChart";
+import MessageSquareIcon from "@mui/icons-material/Chat"; // Renamed for clarity
+import GameControllerIcon from "@mui/icons-material/SportsEsports";
 import ShieldIcon from "@mui/icons-material/Shield";
-import GamepadIcon from "@mui/icons-material/SportsEsports";
-import BotIcon from "@mui/icons-material/SmartToy";
+import PieChartIcon from "@mui/icons-material/BarChart"; // Renamed for clarity
+import SettingsIcon from "@mui/icons-material/Settings";
+import MenuIcon from "@mui/icons-material/Menu";
+// Icons from original shell for user menu
 import LogoutIcon from "@mui/icons-material/Logout";
 import UserIcon from "@mui/icons-material/AccountCircle";
-// Import theme context if needed for theme toggling later
-import { useThemeContext } from "./ThemeProvider"; // Added
-import Brightness4Icon from "@mui/icons-material/Brightness4"; // Added
-import Brightness7Icon from "@mui/icons-material/Brightness7"; // Added
 
-const drawerWidth = 240;
-
-const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
-  open?: boolean;
-}>(({ theme, open }) => ({
-  flexGrow: 1,
-  padding: theme.spacing(3),
-  transition: theme.transitions.create("margin", {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  marginLeft: `-${drawerWidth}px`, // Start closed on larger screens too initially if desired
-  marginTop: "64px", // Adjust based on AppBar height
-  ...(open && {
-    transition: theme.transitions.create("margin", {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-    marginLeft: 0,
-  }),
-  // Adjust for mobile where drawer is temporary
-  [theme.breakpoints.down("md")]: {
-    marginLeft: 0, // Always 0 margin on mobile
-  },
-}));
-
-const StyledAppBar = styled(AppBar, {
-  shouldForwardProp: (prop) => prop !== "open",
-})<{ open?: boolean }>(({ theme, open }) => ({
-  transition: theme.transitions.create(["margin", "width"], {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  ...(open && {
-    width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: `${drawerWidth}px`,
-    transition: theme.transitions.create(["margin", "width"], {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  }),
-  // Adjust for mobile where drawer is temporary
-  [theme.breakpoints.down("md")]: {
-    width: "100%",
-    marginLeft: 0,
-  },
-}));
-
-const DrawerHeader = styled("div")(({ theme }) => ({
-  display: "flex",
-  alignItems: "center",
-  padding: theme.spacing(0, 1),
-  // necessary for content to be below app bar
-  ...theme.mixins.toolbar,
-  justifyContent: "flex-end",
-}));
+const drawerWidth = 260; // From inspiration
 
 interface DashboardShellProps {
   children: React.ReactNode;
+  activePage: string; // From inspiration AppLayoutProps
+  onNavigate: (page: string) => void; // From inspiration AppLayoutProps
   user: {
+    // Keep user info for avatar/menu
     login: string;
-    // isConnected: boolean; // We might get this from context or props later
   };
-  onLogout: () => void;
+  onLogout: () => void; // Keep logout handler
 }
 
 export const DashboardShell: React.FC<DashboardShellProps> = ({
   children,
+  activePage,
+  onNavigate,
   user,
   onLogout,
 }) => {
-  const theme = useTheme();
+  const theme = useTheme(); // Keep for media query
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  // Start closed on mobile, open on desktop by default
-  const [open, setOpen] = useState(!isMobile);
-  const [activeItem, setActiveItem] = useState("dashboard"); // Default active item
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { toggleThemeMode } = useThemeContext(); // Get theme toggle function
+  const [mobileOpen, setMobileOpen] = useState(false); // State for temporary mobile drawer
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // State for user menu
 
-  useEffect(() => {
-    // Adjust drawer state if screen size changes
-    setOpen(!isMobile);
-  }, [isMobile]);
-
-  const handleDrawerOpen = () => {
-    setOpen(true);
-  };
-
-  const handleDrawerClose = () => {
-    setOpen(false);
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
   };
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -132,170 +69,239 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: <HomeIcon /> },
-    { id: "chatbot", label: "Chatbot", icon: <BotIcon /> },
-    { id: "games", label: "Games", icon: <GamepadIcon /> },
+    { id: "chatbot", label: "Chatbot", icon: <MessageSquareIcon /> },
+    { id: "games", label: "Games", icon: <GameControllerIcon /> },
     { id: "moderation", label: "Moderation", icon: <ShieldIcon /> },
-    { id: "analytics", label: "Analytics", icon: <BarChartIcon /> },
+    { id: "analytics", label: "Analytics", icon: <PieChartIcon /> },
     { id: "settings", label: "Settings", icon: <SettingsIcon /> },
   ];
 
-  return (
-    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      <StyledAppBar position="fixed" open={open && !isMobile}>
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{ mr: 2, ...(open && !isMobile && { display: "none" }) }} // Hide only if open AND not mobile
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            MiniGameMaster
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            {/* Add Theme Toggle Button if needed */}
-            <IconButton onClick={toggleThemeMode} color="inherit">
-              {theme.palette.mode === "dark" ? (
-                <Brightness7Icon />
-              ) : (
-                <Brightness4Icon />
-              )}
-            </IconButton>
-            <IconButton
-              size="large"
-              aria-label="account of current user"
-              aria-controls="menu-appbar"
-              aria-haspopup="true"
-              onClick={handleMenu}
-              color="inherit"
-            >
-              <Avatar
-                alt={user.login}
-                // Using a simple letter avatar for now
-                sx={{ width: 32, height: 32, bgcolor: "secondary.main" }}
-              >
-                {user.login?.[0]?.toUpperCase()}
-              </Avatar>
-              {/* Add connection status indicator if needed later */}
-            </IconButton>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItem disabled sx={{ opacity: "1 !important" }}>
-                <Typography variant="body2" fontWeight="medium">
-                  {user.login}
-                </Typography>
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <UserIcon fontSize="small" />
-                </ListItemIcon>
-                Profile (N/A)
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  handleClose();
-                  onLogout();
-                }}
-              >
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
-                </ListItemIcon>
-                Logout
-              </MenuItem>
-            </Menu>
-          </Box>
-        </Toolbar>
-      </StyledAppBar>
-      <Drawer
+  const drawerContent = (
+    <>
+      {/* Drawer Header */}
+      <Box
         sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: drawerWidth,
-            boxSizing: "border-box",
-          },
+          height: 64, // Match AppBar height
+          display: "flex",
+          alignItems: "center",
+          px: 3,
+          // Use theme gradient or primary color
+          background:
+            theme.palette.mode === "dark"
+              ? theme.palette.primary.dark // Example dark mode background
+              : "linear-gradient(45deg, #5e35b1 30%, #7c4dff 90%)", // From inspiration theme
+          color: "primary.contrastText", // Ensure text is visible
         }}
-        variant={isMobile ? "temporary" : "persistent"}
-        anchor="left"
-        open={open}
-        onClose={handleDrawerClose} // Close on backdrop click on mobile
       >
-        <DrawerHeader>
-          {/* Optionally add a close button for persistent drawer */}
-          {!isMobile && (
-            <IconButton onClick={handleDrawerClose}>
-              <MenuIcon /> {/* Or ChevronLeftIcon */}
-            </IconButton>
-          )}
-        </DrawerHeader>
-        <Divider />
-        <Box
+        <Typography variant="h6" fontWeight="bold">
+          MiniGameMaster
+        </Typography>
+      </Box>
+      {/* Navigation List */}
+      <Box sx={{ overflow: "auto", flexGrow: 1, py: 2 }}>
+        <List component="nav" disablePadding>
+          {menuItems.map((item) => (
+            <ListItem key={item.id} disablePadding>
+              <ListItemButton
+                selected={activePage === item.id}
+                onClick={() => {
+                  onNavigate(item.id);
+                  if (isMobile) handleDrawerToggle(); // Close mobile drawer on navigate
+                }}
+                // Styling comes from ThemeProvider component overrides
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+      {/* Drawer Footer */}
+      <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.12)" }}>
+        <Typography
+          variant="caption"
+          sx={{ color: "rgba(255, 255, 255, 0.7)" }}
+        >
+          MiniGameMaster v0.1
+        </Typography>
+      </Box>
+    </>
+  );
+
+  return (
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* Sidebar Drawer */}
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+        aria-label="mailbox folders"
+      >
+        {/* Temporary Drawer for Mobile */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
           sx={{
-            overflow: "auto",
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
+            display: { xs: "block", md: "none" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              // Styling comes from ThemeProvider component overrides
+            },
           }}
         >
-          <List>
-            {menuItems.map((item) => (
-              <ListItem key={item.id} disablePadding>
-                <ListItemButton
-                  selected={activeItem === item.id}
+          {drawerContent}
+        </Drawer>
+        {/* Permanent Drawer for Desktop */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: "none", md: "block" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              // Styling comes from ThemeProvider component overrides
+            },
+          }}
+          open // Permanent drawer is always open on desktop
+        >
+          {drawerContent}
+        </Drawer>
+      </Box>
+
+      {/* Main Content Area */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          overflow: "auto", // Allow content scrolling
+          width: { md: `calc(100% - ${drawerWidth}px)` }, // Adjust width for permanent drawer
+          height: "100vh", // Ensure main area takes full height
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Header AppBar */}
+        <AppBar
+          position="static" // Changed from fixed
+          color="default" // Use theme's default color
+          elevation={0} // No shadow like inspiration
+          sx={{
+            // Keep AppBar above main content scroll
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            borderBottom: "1px solid", // Add border like inspiration
+            borderColor: "divider", // Use theme divider color
+            backgroundColor: "background.paper", // Use paper background like inspiration
+          }}
+        >
+          <Toolbar>
+            {/* Mobile Menu Button */}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { md: "none" } }} // Show only on mobile
+            >
+              <MenuIcon />
+            </IconButton>
+            {/* Title (optional, can be removed if drawer header is enough) */}
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ flexGrow: 1, color: "text.primary" }} // Ensure text color matches theme
+            >
+              {/* Title can be dynamic based on activePage if needed */}
+              {/* {menuItems.find(item => item.id === activePage)?.label || 'MiniGameMaster'} */}
+            </Typography>
+            {/* User Menu / Actions */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Tooltip title="Settings">
+                <IconButton
+                  size="small"
+                  onClick={() => onNavigate("settings")} // Navigate to settings page
+                  sx={{ bgcolor: "action.hover" }} // Subtle background
+                >
+                  <SettingsIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={user.login}>
+                <IconButton
+                  onClick={handleMenu}
+                  size="small"
+                  sx={{ ml: 1 }} // Add some margin
+                >
+                  <Avatar
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      bgcolor: "secondary.main", // Use theme color
+                      fontSize: "0.875rem",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {user.login?.[0]?.toUpperCase() || "?"}
+                  </Avatar>
+                </IconButton>
+              </Tooltip>
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: "bottom",
+                  horizontal: "right",
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: "top",
+                  horizontal: "right",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+                sx={{ mt: 1 }} // Add margin top
+              >
+                <MenuItem disabled sx={{ opacity: "1 !important" }}>
+                  <Typography variant="body2" fontWeight="medium">
+                    {user.login}
+                  </Typography>
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleClose}>
+                  <ListItemIcon>
+                    <UserIcon fontSize="small" />
+                  </ListItemIcon>
+                  Profile (N/A)
+                </MenuItem>
+                <MenuItem
                   onClick={() => {
-                    setActiveItem(item.id);
-                    if (isMobile) handleDrawerClose(); // Close drawer on mobile after selection
-                  }}
-                  sx={{
-                    "&.Mui-selected": {
-                      backgroundColor: "primary.light", // Use theme colors
-                      color: "primary.contrastText",
-                      "&:hover": {
-                        backgroundColor: "primary.main", // Darker hover for selected
-                      },
-                      "& .MuiListItemIcon-root": {
-                        color: "primary.contrastText",
-                      },
-                    },
+                    handleClose();
+                    onLogout();
                   }}
                 >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-          <Box sx={{ flexGrow: 1 }} /> {/* Pushes footer down */}
-          <Box sx={{ p: 2, textAlign: "center" }}>
-            <Typography variant="caption" color="text.secondary">
-              MiniGameMaster v0.1
-            </Typography>
-          </Box>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  Logout
+                </MenuItem>
+              </Menu>
+            </Box>
+          </Toolbar>
+        </AppBar>
+
+        {/* Page Content */}
+        <Box
+          sx={{ flexGrow: 1, p: { xs: 2, sm: 3, md: 4 }, overflowY: "auto" }}
+        >
+          {" "}
+          {/* Added flexGrow and overflowY */}
+          <Box sx={{ maxWidth: 1200, mx: "auto" }}>{children}</Box>
         </Box>
-      </Drawer>
-      {/* Main content area */}
-      <Main open={open && !isMobile} sx={{ overflowY: "auto", height: "100%" }}>
-        {/* DrawerHeader creates space for the fixed AppBar */}
-        {/* <DrawerHeader /> */}
-        {children}
-      </Main>
+      </Box>
     </Box>
   );
 };

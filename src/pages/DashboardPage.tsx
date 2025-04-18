@@ -1,37 +1,36 @@
-import React, { useState, useEffect, useCallback } from "react"; // Added useCallback
-import { Box, Typography, Grid } from "@mui/material";
+import React, { useState, useEffect, useCallback } from "react";
+import { Box, Typography, Grid } from "@mui/material"; // Keep Grid import
 
-// Import the new MUI components using named imports
+// Import the dashboard components
 import { GameManagement } from "../components/Dashboard/GameManagement";
 import { BotConfiguration } from "../components/Dashboard/BotConfiguration";
 import { ModerationSettings } from "../components/Dashboard/ModerationSettings";
 import { Analytics } from "../components/Dashboard/Analytics";
 import { ChatbotControl } from "../components/Dashboard/ChatbotControl";
-import { DashboardShell } from "../components/DashboardShell";
+// DashboardShell is no longer imported or used here
 
-// Keep the existing props interface
+// Props are no longer needed from App.tsx for user/logout
 interface DashboardPageProps {
-  user: {
-    twitchId: string;
-    login: string;
-    displayName: string;
-  } | null;
-  onLogout: () => void;
+  // These props are passed by App.tsx's renderContent, but might not be strictly needed
+  // if user context/state management is handled differently later.
+  // For now, keep the structure but don't rely on them for rendering decisions here.
+  user: any;
+  onLogout: any;
 }
 
 // Define a type for the moderation settings state used within this page component
 interface ModerationSettingsState {
-  enableBasicModeration: boolean; // Renamed from moderationEnabled for clarity in frontend state
-  bannedWords: string; // Store as comma-separated string in state for the TextField
+  enableBasicModeration: boolean;
+  bannedWords: string;
 }
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
-  // --- State for Chatbot Connection ---
+// Remove unused props from signature completely
+const DashboardPage: React.FC<DashboardPageProps> = () => {
+  // --- State Definitions (Keep all existing state) ---
   const [isConnected, setIsConnected] = useState(false);
   const [isBotStatusLoading, setIsBotStatusLoading] = useState(true);
   const [botStatusError, setBotStatusError] = useState<string | null>(null);
 
-  // --- State for Game Status ---
   const [gameStatus, setGameStatus] = useState<null | {
     isActive: boolean;
     name?: string;
@@ -39,26 +38,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
   const [isGameStatusLoading, setIsGameStatusLoading] = useState(true);
   const [gameStatusError, setGameStatusError] = useState<string | null>(null);
 
-  // --- State for Moderation Settings ---
   const [moderationSettings, setModerationSettings] =
     useState<ModerationSettingsState | null>(null);
   const [isModSettingsLoading, setIsModSettingsLoading] = useState(true);
   const [modSettingsError, setModSettingsError] = useState<string | null>(null);
 
-  // --- State for Config Components (Placeholders for now) ---
-  const [gameConfig, setGameConfig] = useState({
-    selectedGame: "guess-the-number",
-    maxNumber: 100,
-  });
-  const [botConfig, setBotConfig] = useState({
-    commandPrefix: "!",
-  });
-  const [analyticsData] = useState({
-    totalGamesPlayed: 15,
-    uniquePlayersToday: 8,
-  });
-
-  // --- Fetch Initial Data ---
+  // --- Fetch Initial Data (Keep existing useEffect) ---
   useEffect(() => {
     const fetchBotStatus = async () => {
       setBotStatusError(null);
@@ -119,8 +104,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
           );
         }
         const data = await response.json();
-        // Convert backend format (moderationEnabled, bannedWords: string[])
-        // to frontend state format (enableBasicModeration, bannedWords: string)
         setModerationSettings({
           enableBasicModeration: data.moderationEnabled ?? false,
           bannedWords: (data.bannedWords ?? []).join(", "),
@@ -132,7 +115,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
             ? err.message
             : "Failed to fetch moderation settings"
         );
-        // Set default state on error
         setModerationSettings({
           enableBasicModeration: false,
           bannedWords: "",
@@ -142,47 +124,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
       }
     };
 
-    // Run all fetches
     fetchBotStatus();
     fetchGameStatus();
     fetchModerationSettings();
   }, []);
 
-  // --- Save Handlers ---
-  const handleGameConfigSave = useCallback(
-    async (config: typeof gameConfig) => {
-      console.log("Saving Game Config (Placeholder):", config);
-      setGameConfig(config);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      // Example: throw new Error("Simulated save error");
-    },
-    []
-  );
-
-  const handleBotConfigSave = useCallback(async (config: typeof botConfig) => {
-    console.log("Saving Bot Config (Placeholder):", config);
-    setBotConfig(config);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }, []);
-
-  // Implement the actual save logic for moderation settings
+  // --- Save Handlers (Keep existing save handlers) ---
   const handleModerationSettingsSave = useCallback(
     async (settings: ModerationSettingsState) => {
-      // Loading/Error state should be handled within the ModerationSettings component itself
       console.log("Attempting to save Moderation Settings:", settings);
       try {
-        // Prepare data for the backend DTO
         const updateDto = {
           moderationEnabled: settings.enableBasicModeration,
-          bannedWords: settings.bannedWords, // Send as comma-separated string
+          bannedWords: settings.bannedWords,
         };
-
         const response = await fetch("/api/moderation/settings", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updateDto),
         });
-
         if (!response.ok) {
           const errorData = await response
             .json()
@@ -193,21 +153,18 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
             }`
           );
         }
-
-        // Update local state on successful save
         setModerationSettings(settings);
         console.log("Moderation settings saved successfully.");
-        // Let the child component handle success message display
+        // Removed potentially problematic throw err from try block
       } catch (err) {
         console.error("Error saving moderation settings:", err);
-        // Re-throw the error so the child component can display it
-        throw err;
+        throw err; // Keep this one to propagate error to the component
       }
     },
     []
   );
 
-  // --- API Calls for Chatbot ---
+  // --- API Calls (Keep existing API call functions) ---
   const connectBot = useCallback(async (): Promise<void> => {
     try {
       const response = await fetch("/api/chatbot/connect", { method: "POST" });
@@ -262,7 +219,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
     }
   }, []);
 
-  // --- API Calls for Game Engine ---
   const startGame = useCallback(
     async (gameId: string, options: any): Promise<void> => {
       try {
@@ -331,100 +287,99 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, onLogout }) => {
   }, []);
 
   // --- Render Logic ---
-  if (!user) {
-    return <div>Error: User not logged in. Redirecting...</div>;
-  }
-
-  // Display loading indicator while fetching initial statuses
+  // Removed the check for !user as ProtectedRoute handles it
+  // Removed DashboardShell wrapper from loading state
   if (isBotStatusLoading || isGameStatusLoading || isModSettingsLoading) {
-    // Added mod settings loading check
     return (
-      <DashboardShell user={user} onLogout={onLogout}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "calc(100vh - 64px)",
-          }}
-        >
-          <Typography>Loading Dashboard...</Typography>
-        </Box>
-      </DashboardShell>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "calc(100vh - 150px)", // Adjust height assuming header/padding
+        }}
+      >
+        <Typography>Loading Dashboard...</Typography>
+        {/* Consider adding a CircularProgress component */}
+      </Box>
     );
   }
 
+  // Main content rendering - No DashboardShell wrapper here
   return (
-    <DashboardShell user={user} onLogout={onLogout}>
-      <Box sx={{ flexGrow: 1, p: 3 }}>
-        <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
-          Dashboard
+    <>
+      {/* Page Title and Description (from inspiration) */}
+      <Typography variant="h4" gutterBottom color="text.primary">
+        Dashboard
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        Manage your Twitch MiniGameMaster settings and view analytics.
+      </Typography>
+
+      {/* Display initial status fetch errors */}
+      {botStatusError && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          Error loading chatbot status: {botStatusError}
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Manage your Twitch MiniGameMaster settings and view analytics.
+      )}
+      {gameStatusError && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          Error loading game status: {gameStatusError}
         </Typography>
+      )}
+      {modSettingsError && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          Error loading moderation settings: {modSettingsError}
+        </Typography>
+      )}
 
-        {/* Display initial status fetch errors */}
-        {botStatusError && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            Error loading chatbot status: {botStatusError}
-          </Typography>
-        )}
-        {gameStatusError && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            Error loading game status: {gameStatusError}
-          </Typography>
-        )}
-        {modSettingsError && ( // Added mod settings error display
-          <Typography color="error" sx={{ mb: 2 }}>
-            Error loading moderation settings: {modSettingsError}
-          </Typography>
-        )}
-
-        <Grid container spacing={3}>
-          {/* Chatbot Control */}
-          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-            <ChatbotControl
-              initialIsConnected={isConnected}
-              onConnect={connectBot}
-              onDisconnect={disconnectBot}
-            />
-          </Grid>
-
-          {/* Game Management */}
-          <Grid size={{ xs: 12, md: 6, lg: 8 }}>
-            <GameManagement
-              config={gameConfig}
-              onSave={handleGameConfigSave}
-              onStartGame={startGame}
-              onStopGame={stopGame}
-              initialGameStatus={gameStatus}
-            />
-          </Grid>
-
-          {/* Bot Configuration */}
-          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-            <BotConfiguration config={botConfig} onSave={handleBotConfigSave} />
-          </Grid>
-
-          {/* Moderation Settings - Conditionally render only when settings are loaded */}
-          {moderationSettings && (
-            <Grid size={{ xs: 12, md: 6, lg: 8 }}>
-              <ModerationSettings
-                settings={moderationSettings} // Pass the non-null state
-                onSave={handleModerationSettingsSave} // Pass the implemented save handler
-              />
-            </Grid>
-          )}
-
-          {/* Analytics */}
-          <Grid size={{ xs: 12 }}>
-            <Analytics data={analyticsData} />
-          </Grid>
+      {/* Grid layout using correct MUI v7 'size' prop */}
+      <Grid container spacing={3}>
+        {/* Chatbot Control (Full Width) */}
+        <Grid size={12}>
+          <ChatbotControl
+            initialIsConnected={isConnected}
+            onConnect={connectBot}
+            onDisconnect={disconnectBot}
+          />
+          {/* Assuming ChatbotControl renders its own Card */}
         </Grid>
-      </Box>
-    </DashboardShell>
+
+        {/* Game Management (Half Width on Medium+) */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <GameManagement
+            onStartGame={startGame}
+            onStopGame={stopGame}
+            initialGameStatus={gameStatus}
+          />
+          {/* Assuming GameManagement renders its own Card */}
+        </Grid>
+
+        {/* Bot Configuration (Half Width on Medium+) */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <BotConfiguration />
+          {/* Assuming BotConfiguration renders its own Card */}
+        </Grid>
+
+        {/* Moderation Settings (Full Width) */}
+        {moderationSettings && (
+          <Grid size={12}>
+            <ModerationSettings
+              settings={moderationSettings}
+              onSave={handleModerationSettingsSave}
+            />
+            {/* Assuming ModerationSettings renders its own Card */}
+          </Grid>
+        )}
+
+        {/* Analytics (Full Width) */}
+        <Grid size={12}>
+          <Analytics />
+          {/* Assuming Analytics renders its own Card */}
+        </Grid>
+      </Grid>
+    </>
   );
 };
 
-export default DashboardPage;
+export default DashboardPage; // Ensure default export is present
