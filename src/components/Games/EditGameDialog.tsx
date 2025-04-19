@@ -201,6 +201,35 @@ const EditGameDialog: React.FC<EditGameDialogProps> = ({
           helperText="Separate values with commas"
         />
       );
+    } else if (valueType === "object" && value !== null) {
+      return (
+        <TextField
+          label={label}
+          value={JSON.stringify(customSettings[key] ?? value, null, 2)}
+          onChange={(e) => {
+            try {
+              const parsedValue = JSON.parse(e.target.value);
+              setCustomSettings((prev) => ({
+                ...prev,
+                [key]: parsedValue,
+              }));
+            } catch (error) {
+              // If JSON is invalid, just store as string
+              setCustomSettings((prev) => ({
+                ...prev,
+                [key]: e.target.value,
+              }));
+            }
+          }}
+          fullWidth
+          variant="outlined"
+          size="small"
+          margin="normal"
+          multiline
+          rows={4}
+          helperText="Edit as JSON"
+        />
+      );
     } else {
       return (
         <TextField

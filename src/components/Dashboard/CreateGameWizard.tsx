@@ -492,6 +492,39 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                                     size="small"
                                     helperText="Separate values with commas"
                                   />
+                                ) : valueType === "object" ? (
+                                  // Object values get a JSON editor
+                                  <TextField
+                                    label={label}
+                                    value={JSON.stringify(
+                                      customSettings[key] ?? value,
+                                      null,
+                                      2
+                                    )}
+                                    onChange={(e) => {
+                                      try {
+                                        const parsedValue = JSON.parse(
+                                          e.target.value
+                                        );
+                                        setCustomSettings((prev) => ({
+                                          ...prev,
+                                          [key]: parsedValue,
+                                        }));
+                                      } catch (error) {
+                                        // If JSON is invalid, just store as string
+                                        setCustomSettings((prev) => ({
+                                          ...prev,
+                                          [key]: e.target.value,
+                                        }));
+                                      }
+                                    }}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    multiline
+                                    rows={4}
+                                    helperText="Edit as JSON"
+                                  />
                                 ) : (
                                   // String values get a text input
                                   <TextField
@@ -691,7 +724,9 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                               .replace(/^./, (str) => str.toUpperCase())}
                           </Typography>
                           <Typography variant="body2">
-                            {String(value)}
+                            {typeof value === "object" && value !== null
+                              ? JSON.stringify(value)
+                              : String(value)}
                           </Typography>
                         </Box>
                       )
