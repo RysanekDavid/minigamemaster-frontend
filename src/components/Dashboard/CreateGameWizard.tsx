@@ -34,6 +34,7 @@ import {
   Lightbulb as LightbulbIcon,
   Psychology as PsychologyIcon,
   ExpandMore as ExpandMoreIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 
 interface CreateGameWizardProps {
@@ -62,6 +63,8 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
   const [generatedGamePreview, setGeneratedGamePreview] = useState<any>(null); // Store AI response
   const [customGameName, setCustomGameName] = useState<string>(""); // Store custom game name
   const [gameNameInput, setGameNameInput] = useState<string>(""); // Game name input in AI config step
+  const [customDescription, setCustomDescription] = useState<string>(""); // Store custom game description
+  const [customRules, setCustomRules] = useState<string>(""); // Store custom game rules
 
   // --- Mock Data ---
   // Replace with props later
@@ -149,6 +152,8 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         setGeneratedGamePreview(generatedData); // Store the preview data
         // Use the game name input if provided, otherwise use the generated name
         setCustomGameName(gameNameInput || generatedData.name); // Pre-populate the custom name field
+        setCustomDescription(generatedData.description); // Pre-populate the description field
+        setCustomRules(generatedData.enhancedConfig?.rules || ""); // Pre-populate the rules field
         setActiveStep((prev) => prev + 1); // Move to Preview step
       } catch (err) {
         console.error("AI Generation Error:", err);
@@ -169,13 +174,24 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
       );
 
       // The game is already saved in the backend during generation
-      // Just notify the parent component about the new game
+      // Just notify the parent component about the new game with any customizations
       if (onGameCreated && generatedGamePreview) {
-        // If user customized the game name, update it before saving
-        if (customGameName && customGameName !== generatedGamePreview.name) {
+        // Check if user customized any fields
+        const nameChanged = customGameName !== generatedGamePreview.name;
+        const descriptionChanged =
+          customDescription !== generatedGamePreview.description;
+        const rulesChanged =
+          customRules !== (generatedGamePreview.enhancedConfig?.rules || "");
+
+        if (nameChanged || descriptionChanged || rulesChanged) {
           const customizedGame = {
             ...generatedGamePreview,
             name: customGameName,
+            description: customDescription,
+            enhancedConfig: {
+              ...generatedGamePreview.enhancedConfig,
+              rules: customRules,
+            },
           };
           onGameCreated(customizedGame);
         } else {
@@ -207,6 +223,8 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
     setGeneratedGamePreview(null);
     setGameNameInput("");
     setCustomGameName("");
+    setCustomDescription("");
+    setCustomRules("");
     setError(null);
     setIsLoading(false);
     onClose();
@@ -334,20 +352,84 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
             </Typography>
             {generatedGamePreview ? (
               <>
-                <TextField
-                  label="Game Name"
-                  value={customGameName || generatedGamePreview.name}
-                  onChange={(e) => setCustomGameName(e.target.value)}
-                  fullWidth
-                  margin="normal"
-                  variant="outlined"
-                  helperText="Customize the name of your game"
-                  sx={{ mb: 3 }}
-                />
+                <Box sx={{ mb: 3 }}>
+                  <TextField
+                    label="Game Name"
+                    value={customGameName}
+                    onChange={(e) => setCustomGameName(e.target.value)}
+                    fullWidth
+                    margin="normal"
+                    variant="outlined"
+                    helperText="Customize the name of your game"
+                  />
+
+                  <TextField
+                    label="Game Description"
+                    value={customDescription}
+                    onChange={(e) => setCustomDescription(e.target.value)}
+                    fullWidth
+                    margin="normal"
+                    variant="outlined"
+                    multiline
+                    rows={3}
+                    helperText="Edit the game description"
+                    sx={{ mt: 2 }}
+                  />
+
+                  {generatedGamePreview.enhancedConfig?.rules && (
+                    <TextField
+                      label="Game Rules"
+                      value={customRules}
+                      onChange={(e) => setCustomRules(e.target.value)}
+                      fullWidth
+                      margin="normal"
+                      variant="outlined"
+                      multiline
+                      rows={4}
+                      helperText="Edit the game rules"
+                      sx={{ mt: 2 }}
+                    />
+                  )}
+
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<RefreshIcon />}
+                    onClick={() => {
+                      // Go back to the AI config step with current values
+                      setAiPrompt(
+                        aiPrompt +
+                          "\n\nPlease regenerate with these changes: " +
+                          (customGameName !== generatedGamePreview.name
+                            ? `\n- New name: ${customGameName}`
+                            : "") +
+                          (customDescription !==
+                          generatedGamePreview.description
+                            ? `\n- New description: ${customDescription}`
+                            : "") +
+                          (customRules !==
+                          generatedGamePreview.enhancedConfig?.rules
+                            ? `\n- New rules: ${customRules}`
+                            : "")
+                      );
+                      setActiveStep(1); // Go back to AI config
+                    }}
+                    sx={{ mt: 2 }}
+                    disabled={isLoading}
+                  >
+                    Regenerate with Changes
+                  </Button>
+                </Box>
+
                 <GamePreviewCard
                   game={{
                     ...generatedGamePreview,
-                    name: customGameName || generatedGamePreview.name,
+                    name: customGameName,
+                    description: customDescription,
+                    enhancedConfig: {
+                      ...generatedGamePreview.enhancedConfig,
+                      rules: customRules,
+                    },
                   }}
                 />
               </>
