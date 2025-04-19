@@ -62,6 +62,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [generatedGamePreview, setGeneratedGamePreview] = useState<any>(null); // Store AI response
   const [customGameName, setCustomGameName] = useState<string>(""); // Store custom game name
+  const [gameNameInput, setGameNameInput] = useState<string>(""); // Game name input in AI config step
 
   // --- Mock Data ---
   // Replace with props later
@@ -114,10 +115,14 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
           body: JSON.stringify({
             templateType: aiTemplateHint,
             prompt: aiPrompt,
+            // Include game name if provided
+            ...(gameNameInput ? { gameName: gameNameInput } : {}),
             // If we're customizing a built-in game, include that information
             ...(selectedTemplateType === "builtin"
               ? {
-                  gameName: `Custom ${selectedBuiltInGame}`,
+                  ...(!gameNameInput
+                    ? { gameName: `Custom ${selectedBuiltInGame}` }
+                    : {}),
                   gameConfig: { baseTemplate: selectedBuiltInGame },
                 }
               : {}),
@@ -134,7 +139,8 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         }
         const generatedData = await response.json();
         setGeneratedGamePreview(generatedData); // Store the preview data
-        setCustomGameName(generatedData.name); // Pre-populate the custom name field
+        // Use the game name input if provided, otherwise use the generated name
+        setCustomGameName(gameNameInput || generatedData.name); // Pre-populate the custom name field
         setActiveStep((prev) => prev + 1); // Move to Preview step
       } catch (err) {
         console.error("AI Generation Error:", err);
@@ -191,6 +197,8 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
     setAiPrompt("");
     setAiTemplateHint("quiz");
     setGeneratedGamePreview(null);
+    setGameNameInput("");
+    setCustomGameName("");
     setError(null);
     setIsLoading(false);
     onClose();
@@ -262,6 +270,27 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
               minWidth: 400,
             }}
           >
+            <Box sx={{ display: "flex", alignItems: "flex-start", mb: 1 }}>
+              <EditIcon
+                fontSize="small"
+                color="action"
+                sx={{ mt: 2.5, mr: 1 }}
+              />
+              <TextField
+                label="Game Name"
+                value={gameNameInput}
+                onChange={(e) => setGameNameInput(e.target.value)}
+                fullWidth
+                margin="normal"
+                variant="outlined"
+                placeholder={
+                  selectedTemplateType === "builtin"
+                    ? `Custom ${selectedBuiltInGame}`
+                    : "My Awesome Game"
+                }
+                helperText="Give your game a name (optional)"
+              />
+            </Box>
             <FormControl fullWidth>
               <InputLabel id="ai-template-hint-label">
                 Game Type Hint
