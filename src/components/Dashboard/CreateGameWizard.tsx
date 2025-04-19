@@ -34,7 +34,6 @@ import {
   Lightbulb as LightbulbIcon,
   Psychology as PsychologyIcon,
   ExpandMore as ExpandMoreIcon,
-  Edit as EditIcon,
 } from "@mui/icons-material";
 
 interface CreateGameWizardProps {
@@ -279,32 +278,20 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
               minWidth: 400,
             }}
           >
-            <Box sx={{ position: "relative" }}>
-              <TextField
-                label="Game Name"
-                value={gameNameInput}
-                onChange={(e) => setGameNameInput(e.target.value)}
-                fullWidth
-                margin="normal"
-                variant="outlined"
-                placeholder={
-                  selectedTemplateType === "builtin"
-                    ? `Custom ${selectedBuiltInGame}`
-                    : "My Awesome Game"
-                }
-                helperText="Give your game a name (optional)"
-              />
-              <Box
-                sx={{
-                  position: "absolute",
-                  right: 14,
-                  top: 14,
-                  pointerEvents: "none",
-                }}
-              >
-                <EditIcon fontSize="small" color="action" />
-              </Box>
-            </Box>
+            <TextField
+              label="Game Name"
+              value={gameNameInput}
+              onChange={(e) => setGameNameInput(e.target.value)}
+              fullWidth
+              margin="normal"
+              variant="outlined"
+              placeholder={
+                selectedTemplateType === "builtin"
+                  ? `Custom ${selectedBuiltInGame}`
+                  : "My Awesome Game"
+              }
+              helperText="Give your game a name (optional)"
+            />
             {/* Only show Game Type Hint for AI-generated games, not for built-in templates */}
             {selectedTemplateType !== "builtin" && (
               <FormControl fullWidth>
@@ -347,27 +334,16 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
             </Typography>
             {generatedGamePreview ? (
               <>
-                <Box sx={{ position: "relative", mb: 3 }}>
-                  <TextField
-                    label="Game Name"
-                    value={customGameName || generatedGamePreview.name}
-                    onChange={(e) => setCustomGameName(e.target.value)}
-                    fullWidth
-                    margin="normal"
-                    variant="outlined"
-                    helperText="Customize the name of your game"
-                  />
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      right: 14,
-                      top: 14,
-                      pointerEvents: "none",
-                    }}
-                  >
-                    <EditIcon fontSize="small" color="action" />
-                  </Box>
-                </Box>
+                <TextField
+                  label="Game Name"
+                  value={customGameName || generatedGamePreview.name}
+                  onChange={(e) => setCustomGameName(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                  variant="outlined"
+                  helperText="Customize the name of your game"
+                  sx={{ mb: 3 }}
+                />
                 <GamePreviewCard
                   game={{
                     ...generatedGamePreview,
