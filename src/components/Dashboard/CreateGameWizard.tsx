@@ -17,7 +17,25 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Paper,
+  Avatar,
+  Divider,
+  Grid,
+  Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  useTheme,
+  alpha,
 } from "@mui/material";
+import {
+  QuestionAnswer as QuestionAnswerIcon,
+  Extension as ExtensionIcon,
+  Casino as CasinoIcon,
+  Lightbulb as LightbulbIcon,
+  Psychology as PsychologyIcon,
+  ExpandMore as ExpandMoreIcon,
+} from "@mui/icons-material";
 
 interface CreateGameWizardProps {
   open: boolean;
@@ -270,34 +288,246 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
             <Typography variant="h6" gutterBottom>
               Preview
             </Typography>
-            {selectedTemplateType === "builtin" ? (
-              <Typography>
-                Selected Built-in Game: {selectedBuiltInGame}
-              </Typography>
-            ) : // TODO: Show config options for built-in game here?
-            generatedGamePreview ? (
-              <Box
-                sx={{
-                  fontFamily: "monospace",
-                  whiteSpace: "pre-wrap",
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  border: "1px solid grey",
-                  p: 1,
-                  borderRadius: 1,
-                }}
-              >
-                {JSON.stringify(generatedGamePreview, null, 2)}
-              </Box>
+            {generatedGamePreview ? (
+              <GamePreviewCard game={generatedGamePreview} />
             ) : (
               <Typography>No preview available.</Typography>
             )}
-            {/* TODO: Add ability to edit the generated preview? */}
           </Box>
         );
       default:
         return "Unknown step";
     }
+  };
+
+  // Helper component for a more visually appealing game preview
+  const GamePreviewCard = ({ game }: { game: any }) => {
+    const theme = useTheme();
+
+    // Get icon based on game type
+    const getGameIcon = () => {
+      const gameType = game.type || game.enhancedConfig?.gameType || "generic";
+
+      switch (gameType) {
+        case "trivia":
+          return <QuestionAnswerIcon />;
+        case "word":
+          return <ExtensionIcon />;
+        case "guess":
+          return <CasinoIcon />;
+        case "story":
+          return <LightbulbIcon />;
+        case "puzzle":
+          return <PsychologyIcon />;
+        default:
+          return <CasinoIcon />;
+      }
+    };
+
+    return (
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          mb: 2,
+          bgcolor: alpha(theme.palette.primary.main, 0.05),
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <Avatar
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.2),
+              color: "primary.main",
+              mr: 2,
+            }}
+          >
+            {getGameIcon()}
+          </Avatar>
+          <Box>
+            <Typography variant="h6">{game.name}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {game.type || game.enhancedConfig?.gameType || "Custom Game"}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          {game.description}
+        </Typography>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Typography variant="subtitle2" gutterBottom>
+          Game Details
+        </Typography>
+
+        <Box sx={{ mt: 1 }}>
+          {game.enhancedConfig && (
+            <>
+              {/* Show game rules if available */}
+              {game.enhancedConfig.rules && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography
+                    variant="subtitle2"
+                    color="primary.main"
+                    gutterBottom
+                  >
+                    Rules
+                  </Typography>
+                  <Typography variant="body2">
+                    {game.enhancedConfig.rules}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Show game settings if available */}
+              {game.enhancedConfig.settings && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography
+                    variant="subtitle2"
+                    color="primary.main"
+                    gutterBottom
+                  >
+                    Settings
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: 1,
+                    }}
+                  >
+                    {Object.entries(game.enhancedConfig.settings).map(
+                      ([key, value]) => (
+                        <Box key={key}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            component="div"
+                          >
+                            {key
+                              .replace(/([A-Z])/g, " $1")
+                              .replace(/^./, (str) => str.toUpperCase())}
+                          </Typography>
+                          <Typography variant="body2">
+                            {String(value)}
+                          </Typography>
+                        </Box>
+                      )
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Show questions for trivia games */}
+              {game.enhancedConfig.questions &&
+                game.enhancedConfig.questions.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="primary.main"
+                      gutterBottom
+                    >
+                      Sample Questions
+                    </Typography>
+                    <Box
+                      sx={{
+                        maxHeight: 150,
+                        overflowY: "auto",
+                        p: 1,
+                        bgcolor: alpha(theme.palette.background.default, 0.5),
+                        borderRadius: 1,
+                      }}
+                    >
+                      {game.enhancedConfig.questions
+                        .slice(0, 3)
+                        .map((q: any, i: number) => (
+                          <Box key={i} sx={{ mb: 1 }}>
+                            <Typography variant="body2" fontWeight="bold">
+                              Q{i + 1}: {q.question}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              A:{" "}
+                              {q.answer ||
+                                (q.options && q.options[q.correctOption])}
+                            </Typography>
+                          </Box>
+                        ))}
+                      {game.enhancedConfig.questions.length > 3 && (
+                        <Typography variant="caption" color="text.secondary">
+                          +{game.enhancedConfig.questions.length - 3} more
+                          questions
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                )}
+
+              {/* Show word bank for word games */}
+              {game.enhancedConfig.wordBank &&
+                game.enhancedConfig.wordBank.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="primary.main"
+                      gutterBottom
+                    >
+                      Word Bank
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {game.enhancedConfig.wordBank
+                        .slice(0, 10)
+                        .map((word: string, i: number) => (
+                          <Chip
+                            key={i}
+                            label={word}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                      {game.enhancedConfig.wordBank.length > 10 && (
+                        <Chip
+                          label={`+${
+                            game.enhancedConfig.wordBank.length - 10
+                          } more`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                )}
+            </>
+          )}
+
+          {/* Advanced details toggle */}
+          <Accordion sx={{ mt: 2, bgcolor: "transparent" }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="body2">Advanced Details</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box
+                sx={{
+                  fontFamily: "monospace",
+                  fontSize: "0.75rem",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: 200,
+                  overflowY: "auto",
+                  p: 1,
+                  bgcolor: alpha(theme.palette.grey[900], 0.05),
+                  borderRadius: 1,
+                }}
+              >
+                {JSON.stringify(game, null, 2)}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+        </Box>
+      </Paper>
+    );
   };
 
   return (
