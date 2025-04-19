@@ -4,7 +4,7 @@
  * @created 2023-07-10
  */
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -17,6 +17,9 @@ import {
   Chip,
   alpha,
   useTheme,
+  FormControlLabel,
+  Switch,
+  Divider,
 } from "@mui/material";
 import {
   PlayArrow as PlayIcon,
@@ -31,6 +34,7 @@ import {
   Psychology as PsychologyIcon,
 } from "@mui/icons-material";
 import { GAME_TEMPLATES } from "./GameTypeSelector";
+import GameApiService from "../../services/gameApi";
 
 interface ActiveGamePanelProps {
   activeGame: {
@@ -39,10 +43,16 @@ interface ActiveGamePanelProps {
     type: string;
     description: string;
     aiGenerated: boolean;
+    enhancedConfig?: {
+      settings?: Record<string, any>;
+      rules?: string;
+      [key: string]: any;
+    };
   } | null;
   onStopGame: () => void;
   onResetScores?: () => void;
   onBrowseGames: () => void;
+  onGameUpdated?: (updatedGame: any) => void;
 }
 
 const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
@@ -50,8 +60,20 @@ const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
   onStopGame,
   onResetScores,
   onBrowseGames,
+  onGameUpdated,
 }) => {
   const theme = useTheme();
+  const [autoStartEnabled, setAutoStartEnabled] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+
+  // Load autoStart setting when active game changes
+  useEffect(() => {
+    if (activeGame) {
+      // Check if the game has autoStart in its settings
+      const hasAutoStart = activeGame.enhancedConfig?.settings?.autoStart;
+      setAutoStartEnabled(!!hasAutoStart);
+    }
+  }, [activeGame]);
 
   if (!activeGame) {
     return (
@@ -218,11 +240,100 @@ const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
               sx={{
                 p: 2,
                 borderRadius: 2,
+                mb: 3,
               }}
             >
               <Typography variant="body2" color="text.secondary">
                 {activeGame.description}
               </Typography>
+            </Paper>
+
+            <Typography variant="subtitle2" gutterBottom>
+              Game Settings
+            </Typography>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={autoStartEnabled}
+                    onChange={async (e) => {
+                      const newValue = e.target.checked;
+                      setAutoStartEnabled(newValue);
+                      setIsUpdating(true);
+
+                      try {
+                        // Get current game config
+                        const currentConfig =
+                          await GameApiService.getGameConfig(activeGame.id);
+
+                        // Update with new autoStart setting
+                        const updatedConfig = {
+                          ...currentConfig,
+                          settings: {
+                            ...currentConfig.settings,
+                            autoStart: newValue,
+                          },
+                        };
+
+                        // Save updated config
+                        await GameApiService.updateGameConfig(
+                          activeGame.id,
+                          updatedConfig
+                        );
+
+                        // Update the game in parent component if callback provided
+                        if (onGameUpdated) {
+                          onGameUpdated({
+                            ...activeGame,
+                            enhancedConfig: {
+                              ...activeGame.enhancedConfig,
+                              settings: {
+                                ...activeGame.enhancedConfig?.settings,
+                                autoStart: newValue,
+                              },
+                            },
+                          });
+                        }
+                      } catch (error) {
+                        console.error(
+                          "Error updating autoStart setting:",
+                          error
+                        );
+                        // Revert UI state on error
+                        setAutoStartEnabled(!newValue);
+                      } finally {
+                        setIsUpdating(false);
+                      }
+                    }}
+                    disabled={isUpdating}
+                  />
+                }
+                label="Auto Start"
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ ml: 4 }}
+              >
+                Automatically start this game when the bot connects
+              </Typography>
+
+              {activeGame.enhancedConfig?.settings &&
+                Object.keys(activeGame.enhancedConfig.settings).length > 1 && (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Other game settings are available in the game editor.
+                    </Typography>
+                  </>
+                )}
             </Paper>
           </Grid>
 

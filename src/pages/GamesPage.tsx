@@ -460,6 +460,7 @@ const GamesPage: React.FC = () => {
               activeGame={activeGame}
               onStopGame={handleStopGame}
               onBrowseGames={() => setTabValue(1)}
+              onGameUpdated={handleGameUpdated}
             />
             {renderGameStatistics()}
             {renderRecentGames()}
