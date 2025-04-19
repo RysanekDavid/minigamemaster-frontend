@@ -90,13 +90,16 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
           (game) => game.id === selectedBuiltInGame
         );
         if (selectedGame) {
-          // Set a default prompt for the built-in game
+          // Set a default prompt and game type hint based on the selected built-in game
           if (selectedBuiltInGame === "guess-the-number") {
             setAiPrompt(
               "Customize the Guess the Number game. You can change the number range, add themes, modify rules, or add special mechanics."
             );
             setAiTemplateHint("guess");
           }
+
+          // Set a default game name suggestion
+          setGameNameInput(`Custom ${selectedGame.name}`);
         }
       }
       setActiveStep((prev) => prev + 1); // Go to AI config step
@@ -113,7 +116,13 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            templateType: aiTemplateHint,
+            // For built-in templates, use a specific template type based on the game
+            templateType:
+              selectedTemplateType === "builtin"
+                ? selectedBuiltInGame === "guess-the-number"
+                  ? "guess"
+                  : aiTemplateHint
+                : aiTemplateHint,
             prompt: aiPrompt,
             // Include game name if provided
             ...(gameNameInput ? { gameName: gameNameInput } : {}),
@@ -270,12 +279,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
               minWidth: 400,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "flex-start", mb: 1 }}>
-              <EditIcon
-                fontSize="small"
-                color="action"
-                sx={{ mt: 2.5, mr: 1 }}
-              />
+            <Box sx={{ position: "relative" }}>
               <TextField
                 label="Game Name"
                 value={gameNameInput}
@@ -290,25 +294,38 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                 }
                 helperText="Give your game a name (optional)"
               />
-            </Box>
-            <FormControl fullWidth>
-              <InputLabel id="ai-template-hint-label">
-                Game Type Hint
-              </InputLabel>
-              <Select
-                labelId="ai-template-hint-label"
-                value={aiTemplateHint}
-                label="Game Type Hint"
-                onChange={(e) => setAiTemplateHint(e.target.value)}
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: 14,
+                  top: 14,
+                  pointerEvents: "none",
+                }}
               >
-                {/* Add more relevant hints */}
-                <MenuItem value="quiz">Quiz/Trivia</MenuItem>
-                <MenuItem value="story">Interactive Story</MenuItem>
-                <MenuItem value="puzzle">Puzzle/Word Game</MenuItem>
-                <MenuItem value="chance">Game of Chance</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </Select>
-            </FormControl>
+                <EditIcon fontSize="small" color="action" />
+              </Box>
+            </Box>
+            {/* Only show Game Type Hint for AI-generated games, not for built-in templates */}
+            {selectedTemplateType !== "builtin" && (
+              <FormControl fullWidth>
+                <InputLabel id="ai-template-hint-label">
+                  Game Type Hint
+                </InputLabel>
+                <Select
+                  labelId="ai-template-hint-label"
+                  value={aiTemplateHint}
+                  label="Game Type Hint"
+                  onChange={(e) => setAiTemplateHint(e.target.value)}
+                >
+                  {/* Add more relevant hints */}
+                  <MenuItem value="quiz">Quiz/Trivia</MenuItem>
+                  <MenuItem value="story">Interactive Story</MenuItem>
+                  <MenuItem value="puzzle">Puzzle/Word Game</MenuItem>
+                  <MenuItem value="chance">Game of Chance</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            )}
             <TextField
               label="Describe the game you want to create"
               multiline
@@ -330,8 +347,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
             </Typography>
             {generatedGamePreview ? (
               <>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-                  <EditIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                <Box sx={{ position: "relative", mb: 3 }}>
                   <TextField
                     label="Game Name"
                     value={customGameName || generatedGamePreview.name}
@@ -341,6 +357,16 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                     variant="outlined"
                     helperText="Customize the name of your game"
                   />
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      right: 14,
+                      top: 14,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <EditIcon fontSize="small" color="action" />
+                  </Box>
                 </Box>
                 <GamePreviewCard
                   game={{
