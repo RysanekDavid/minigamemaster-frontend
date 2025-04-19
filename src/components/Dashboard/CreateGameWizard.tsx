@@ -20,7 +20,6 @@ import {
   Paper,
   Avatar,
   Divider,
-  Grid,
   Chip,
   Accordion,
   AccordionSummary,
@@ -35,6 +34,7 @@ import {
   Lightbulb as LightbulbIcon,
   Psychology as PsychologyIcon,
   ExpandMore as ExpandMoreIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 
 interface CreateGameWizardProps {
@@ -61,6 +61,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedGamePreview, setGeneratedGamePreview] = useState<any>(null); // Store AI response
+  const [customGameName, setCustomGameName] = useState<string>(""); // Store custom game name
 
   // --- Mock Data ---
   // Replace with props later
@@ -133,6 +134,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         }
         const generatedData = await response.json();
         setGeneratedGamePreview(generatedData); // Store the preview data
+        setCustomGameName(generatedData.name); // Pre-populate the custom name field
         setActiveStep((prev) => prev + 1); // Move to Preview step
       } catch (err) {
         console.error("AI Generation Error:", err);
@@ -155,7 +157,16 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
       // The game is already saved in the backend during generation
       // Just notify the parent component about the new game
       if (onGameCreated && generatedGamePreview) {
-        onGameCreated(generatedGamePreview);
+        // If user customized the game name, update it before saving
+        if (customGameName && customGameName !== generatedGamePreview.name) {
+          const customizedGame = {
+            ...generatedGamePreview,
+            name: customGameName,
+          };
+          onGameCreated(customizedGame);
+        } else {
+          onGameCreated(generatedGamePreview);
+        }
       }
 
       handleClose(); // Close wizard on successful save
@@ -286,10 +297,29 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         return (
           <Box sx={{ minWidth: 400 }}>
             <Typography variant="h6" gutterBottom>
-              Preview
+              Preview and Customize
             </Typography>
             {generatedGamePreview ? (
-              <GamePreviewCard game={generatedGamePreview} />
+              <>
+                <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+                  <EditIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                  <TextField
+                    label="Game Name"
+                    value={customGameName || generatedGamePreview.name}
+                    onChange={(e) => setCustomGameName(e.target.value)}
+                    fullWidth
+                    margin="normal"
+                    variant="outlined"
+                    helperText="Customize the name of your game"
+                  />
+                </Box>
+                <GamePreviewCard
+                  game={{
+                    ...generatedGamePreview,
+                    name: customGameName || generatedGamePreview.name,
+                  }}
+                />
+              </>
             ) : (
               <Typography>No preview available.</Typography>
             )}
