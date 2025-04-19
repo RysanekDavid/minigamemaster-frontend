@@ -26,6 +26,8 @@ import {
   AccordionDetails,
   useTheme,
   alpha,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   QuestionAnswer as QuestionAnswerIcon,
@@ -65,6 +67,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
   const [gameNameInput, setGameNameInput] = useState<string>(""); // Game name input in AI config step
   const [customDescription, setCustomDescription] = useState<string>(""); // Store custom game description
   const [customRules, setCustomRules] = useState<string>(""); // Store custom game rules
+  const [customSettings, setCustomSettings] = useState<Record<string, any>>({}); // Store custom game settings
 
   // --- Mock Data ---
   // Replace with props later
@@ -154,6 +157,12 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         setCustomGameName(gameNameInput || generatedData.name); // Pre-populate the custom name field
         setCustomDescription(generatedData.description); // Pre-populate the description field
         setCustomRules(generatedData.enhancedConfig?.rules || ""); // Pre-populate the rules field
+
+        // Initialize settings with the generated values
+        if (generatedData.enhancedConfig?.settings) {
+          setCustomSettings(generatedData.enhancedConfig.settings);
+        }
+
         setActiveStep((prev) => prev + 1); // Move to Preview step
       } catch (err) {
         console.error("AI Generation Error:", err);
@@ -182,8 +191,14 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
           customDescription !== generatedGamePreview.description;
         const rulesChanged =
           customRules !== (generatedGamePreview.enhancedConfig?.rules || "");
+        const settingsChanged = Object.keys(customSettings).length > 0;
 
-        if (nameChanged || descriptionChanged || rulesChanged) {
+        if (
+          nameChanged ||
+          descriptionChanged ||
+          rulesChanged ||
+          settingsChanged
+        ) {
           const customizedGame = {
             ...generatedGamePreview,
             name: customGameName,
@@ -191,6 +206,12 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
             enhancedConfig: {
               ...generatedGamePreview.enhancedConfig,
               rules: customRules,
+              settings: settingsChanged
+                ? {
+                    ...generatedGamePreview.enhancedConfig?.settings,
+                    ...customSettings,
+                  }
+                : generatedGamePreview.enhancedConfig?.settings,
             },
           };
           onGameCreated(customizedGame);
@@ -225,6 +246,7 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
     setCustomGameName("");
     setCustomDescription("");
     setCustomRules("");
+    setCustomSettings({});
     setError(null);
     setIsLoading(false);
     onClose();
@@ -391,6 +413,108 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                     />
                   )}
 
+                  {/* Game Settings Editor */}
+                  {generatedGamePreview.enhancedConfig?.settings &&
+                    Object.keys(generatedGamePreview.enhancedConfig.settings)
+                      .length > 0 && (
+                      <Box sx={{ mt: 3, mb: 2 }}>
+                        <Typography variant="subtitle1" gutterBottom>
+                          Game Settings
+                        </Typography>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                          {Object.entries(
+                            generatedGamePreview.enhancedConfig.settings
+                          ).map(([key, value]) => {
+                            // Determine the input type based on the value type
+                            const valueType = typeof value;
+
+                            // Format the label from camelCase
+                            const label = key
+                              .replace(/([A-Z])/g, " $1")
+                              .replace(/^./, (str) => str.toUpperCase());
+
+                            return (
+                              <Box key={key} sx={{ mb: 2 }}>
+                                {valueType === "boolean" ? (
+                                  // Boolean values get a switch
+                                  <FormControlLabel
+                                    control={
+                                      <Switch
+                                        checked={!!customSettings[key]}
+                                        onChange={(e) => {
+                                          setCustomSettings((prev) => ({
+                                            ...prev,
+                                            [key]: e.target.checked,
+                                          }));
+                                        }}
+                                      />
+                                    }
+                                    label={label}
+                                  />
+                                ) : valueType === "number" ? (
+                                  // Number values get a number input
+                                  <TextField
+                                    label={label}
+                                    type="number"
+                                    value={customSettings[key] ?? value}
+                                    onChange={(e) => {
+                                      const newValue =
+                                        e.target.value === ""
+                                          ? ""
+                                          : Number(e.target.value);
+                                      setCustomSettings((prev) => ({
+                                        ...prev,
+                                        [key]: newValue,
+                                      }));
+                                    }}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                ) : Array.isArray(value) ? (
+                                  // Arrays get a comma-separated text field
+                                  <TextField
+                                    label={label}
+                                    value={(customSettings[key] || value).join(
+                                      ", "
+                                    )}
+                                    onChange={(e) => {
+                                      const newValue = e.target.value
+                                        .split(",")
+                                        .map((item) => item.trim());
+                                      setCustomSettings((prev) => ({
+                                        ...prev,
+                                        [key]: newValue,
+                                      }));
+                                    }}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    helperText="Separate values with commas"
+                                  />
+                                ) : (
+                                  // String values get a text input
+                                  <TextField
+                                    label={label}
+                                    value={customSettings[key] ?? value}
+                                    onChange={(e) => {
+                                      setCustomSettings((prev) => ({
+                                        ...prev,
+                                        [key]: e.target.value,
+                                      }));
+                                    }}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                )}
+                              </Box>
+                            );
+                          })}
+                        </Paper>
+                      </Box>
+                    )}
+
                   <Button
                     variant="outlined"
                     color="primary"
@@ -410,6 +534,11 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                           (customRules !==
                           generatedGamePreview.enhancedConfig?.rules
                             ? `\n- New rules: ${customRules}`
+                            : "") +
+                          (Object.keys(customSettings).length > 0
+                            ? `\n- Updated settings: ${JSON.stringify(
+                                customSettings
+                              )}`
                             : "")
                       );
                       setActiveStep(1); // Go back to AI config
@@ -429,6 +558,13 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                     enhancedConfig: {
                       ...generatedGamePreview.enhancedConfig,
                       rules: customRules,
+                      settings:
+                        Object.keys(customSettings).length > 0
+                          ? {
+                              ...generatedGamePreview.enhancedConfig?.settings,
+                              ...customSettings,
+                            }
+                          : generatedGamePreview.enhancedConfig?.settings,
                     },
                   }}
                 />
