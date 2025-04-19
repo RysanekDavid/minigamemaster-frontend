@@ -18,7 +18,7 @@ import {
   alpha,
   useTheme,
   FormControlLabel,
-  Switch,
+  Checkbox,
   Divider,
 } from "@mui/material";
 import {
@@ -43,6 +43,7 @@ interface ActiveGamePanelProps {
     type: string;
     description: string;
     aiGenerated: boolean;
+    autoStartEnabled?: boolean; // For hardcoded games like Guess the Number
     enhancedConfig?: {
       settings?: Record<string, any>;
       rules?: string;
@@ -69,8 +70,11 @@ const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
   // Load autoStart setting when active game changes
   useEffect(() => {
     if (activeGame) {
-      // Check if the game has autoStart in its settings
-      const hasAutoStart = activeGame.enhancedConfig?.settings?.autoStart;
+      // First check for the global autoStartEnabled property (used by hardcoded games)
+      // Then fall back to the settings.autoStart property (used by AI-generated games)
+      const hasAutoStart =
+        activeGame.autoStartEnabled ||
+        activeGame.enhancedConfig?.settings?.autoStart;
       setAutoStartEnabled(!!hasAutoStart);
     }
   }, [activeGame]);
@@ -260,7 +264,7 @@ const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
             >
               <FormControlLabel
                 control={
-                  <Switch
+                  <Checkbox
                     checked={autoStartEnabled}
                     onChange={async (e) => {
                       const newValue = e.target.checked;
@@ -275,9 +279,10 @@ const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
                         // Update with new autoStart setting
                         const updatedConfig = {
                           ...currentConfig,
+                          autoStartEnabled: newValue, // Use the same property name as in the hardcoded game
                           settings: {
                             ...currentConfig.settings,
-                            autoStart: newValue,
+                            autoStart: newValue, // Keep this for backward compatibility
                           },
                         };
 
@@ -314,16 +319,8 @@ const ActiveGamePanel: React.FC<ActiveGamePanelProps> = ({
                     disabled={isUpdating}
                   />
                 }
-                label="Auto Start"
+                label="Enable Automatic Game Start"
               />
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                sx={{ ml: 4 }}
-              >
-                Automatically start this game when the bot connects
-              </Typography>
 
               {activeGame.enhancedConfig?.settings &&
                 Object.keys(activeGame.enhancedConfig.settings).length > 1 && (
