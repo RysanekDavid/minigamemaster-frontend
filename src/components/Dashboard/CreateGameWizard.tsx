@@ -422,6 +422,33 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
                           Game Settings
                         </Typography>
                         <Paper variant="outlined" sx={{ p: 2 }}>
+                          {/* Auto Start Setting */}
+                          <Box sx={{ mb: 2 }}>
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={!!customSettings.autoStart}
+                                  onChange={(e) => {
+                                    setCustomSettings((prev) => ({
+                                      ...prev,
+                                      autoStart: e.target.checked,
+                                    }));
+                                  }}
+                                />
+                              }
+                              label="Auto Start"
+                            />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                              sx={{ ml: 2 }}
+                            >
+                              Automatically start this game when the bot
+                              connects
+                            </Typography>
+                          </Box>
+                          <Divider sx={{ my: 2 }} />
                           {Object.entries(
                             generatedGamePreview.enhancedConfig.settings
                           ).map(([key, value]) => {

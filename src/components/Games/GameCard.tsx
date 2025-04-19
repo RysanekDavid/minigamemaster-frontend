@@ -28,6 +28,7 @@ import {
   ContentCopy as DuplicateIcon,
   AutoFixHigh as AIIcon,
   SportsEsports as GameControllerIcon,
+  Edit as EditIcon,
   QuestionAnswer as QuestionAnswerIcon,
   Extension as ExtensionIcon,
   Casino as CasinoIcon,
@@ -53,6 +54,7 @@ interface GameCardProps {
   onStopGame: () => void;
   onDeleteGame: (gameId: string) => void;
   onDuplicateGame?: (gameId: string) => void;
+  onEditGame?: (gameId: string) => void;
 }
 
 const GameCard: React.FC<GameCardProps> = ({
@@ -61,6 +63,7 @@ const GameCard: React.FC<GameCardProps> = ({
   onStopGame,
   onDeleteGame,
   onDuplicateGame,
+  onEditGame,
 }) => {
   const theme = useTheme();
   const isActive = game.status === "active";
@@ -221,6 +224,18 @@ const GameCard: React.FC<GameCardProps> = ({
 
       <CardActions sx={{ justifyContent: "space-between", p: 2, pt: 0 }}>
         <Box>
+          {onEditGame && (
+            <Tooltip title="Edit Game">
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => onEditGame(game.id)}
+                sx={{ mr: 1 }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Delete Game">
             <IconButton
               size="small"

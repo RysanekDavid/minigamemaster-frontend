@@ -27,6 +27,7 @@ import {
 import GameCard from "../components/Games/GameCard";
 import ActiveGamePanel from "../components/Games/ActiveGamePanel";
 import CreateGameDialog from "../components/Games/CreateGameDialog";
+import EditGameDialog from "../components/Games/EditGameDialog";
 
 // Import API service
 import GameApiService, {
@@ -63,6 +64,8 @@ const GamesPage: React.FC = () => {
   const [games, setGames] = useState<GameDefinition[]>([]);
   const [activeGame, setActiveGame] = useState<GameDefinition | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -215,6 +218,29 @@ const GamesPage: React.FC = () => {
     setGames([newGame, ...games]);
   };
 
+  // Handle edit dialog
+  const handleOpenEditDialog = (gameId: string) => {
+    setSelectedGameId(gameId);
+    setEditDialogOpen(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setSelectedGameId(null);
+  };
+
+  const handleGameUpdated = (updatedGame: GameDefinition) => {
+    // Update the game in the local state
+    setGames(
+      games.map((game) => (game.id === updatedGame.id ? updatedGame : game))
+    );
+
+    // If this is the active game, update it too
+    if (activeGame && activeGame.id === updatedGame.id) {
+      setActiveGame(updatedGame);
+    }
+  };
+
   // Render game statistics
   const renderGameStatistics = () => {
     const totalPlays = games.reduce((sum, game) => sum + (game.plays || 0), 0);
@@ -361,6 +387,7 @@ const GamesPage: React.FC = () => {
                 onStartGame={handleStartGame}
                 onStopGame={handleStopGame}
                 onDeleteGame={handleDeleteGame}
+                onEditGame={handleOpenEditDialog}
               />
             </Grid>
           ))}
@@ -491,6 +518,7 @@ const GamesPage: React.FC = () => {
                       onStartGame={handleStartGame}
                       onStopGame={handleStopGame}
                       onDeleteGame={handleDeleteGame}
+                      onEditGame={handleOpenEditDialog}
                     />
                   </Grid>
                 ))}
@@ -504,6 +532,13 @@ const GamesPage: React.FC = () => {
         open={createDialogOpen}
         onClose={handleCloseCreateDialog}
         onGameCreated={handleGameCreated}
+      />
+
+      <EditGameDialog
+        open={editDialogOpen}
+        onClose={handleCloseEditDialog}
+        onGameUpdated={handleGameUpdated}
+        gameId={selectedGameId}
       />
     </>
   );
