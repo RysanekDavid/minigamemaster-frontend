@@ -63,13 +63,23 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         setError("Please select a built-in game.");
         return;
       }
-      if (selectedTemplateType === "ai") {
-        setActiveStep((prev) => prev + 1); // Go to AI config step
-      } else {
-        // Skip AI config step for built-in games
-        // TODO: Potentially load config UI for built-in here? For now, just skip to end.
-        setActiveStep(steps.length - 1); // Go directly to Preview/Save (or final step)
+      // Always go to AI config step, but pre-populate with built-in game details if selected
+      if (selectedTemplateType === "builtin") {
+        // Pre-populate the AI prompt with built-in game details
+        const selectedGame = builtInTemplates.find(
+          (game) => game.id === selectedBuiltInGame
+        );
+        if (selectedGame) {
+          // Set a default prompt for the built-in game
+          if (selectedBuiltInGame === "guess-the-number") {
+            setAiPrompt(
+              "Customize the Guess the Number game. You can change the number range, add themes, modify rules, or add special mechanics."
+            );
+            setAiTemplateHint("guess");
+          }
+        }
       }
+      setActiveStep((prev) => prev + 1); // Go to AI config step
     } else if (activeStep === 1) {
       // Moving from Configure AI
       if (!aiPrompt.trim()) {
@@ -85,6 +95,13 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
           body: JSON.stringify({
             templateType: aiTemplateHint,
             prompt: aiPrompt,
+            // If we're customizing a built-in game, include that information
+            ...(selectedTemplateType === "builtin"
+              ? {
+                  gameName: `Custom ${selectedBuiltInGame}`,
+                  gameConfig: { baseTemplate: selectedBuiltInGame },
+                }
+              : {}),
           }),
           credentials: "include",
         });
@@ -306,6 +323,23 @@ export const CreateGameWizard: React.FC<CreateGameWizardProps> = ({
         >
           {isLoading ? <CircularProgress /> : renderStepContent(activeStep)}
         </Box>
+        {selectedTemplateType === "builtin" && activeStep === 1 && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              bgcolor: "info.light",
+              borderRadius: 1,
+              color: "info.contrastText",
+            }}
+          >
+            <Typography variant="body2">
+              You're customizing the built-in "{selectedBuiltInGame}" template.
+              Describe how you want to modify it, and the AI will generate a
+              customized version.
+            </Typography>
+          </Box>
+        )}
         {error && (
           <Typography color="error" variant="body2" sx={{ mt: 1 }}>
             Error: {error}
