@@ -45,6 +45,8 @@ const csTranslation = {
     connectBot: "Připojit bota",
     disconnectBot: "Odpojit bota",
     unknownError: "Došlo k neznámé chybě",
+    testing: "Testování...",
+    checking: "Kontrola...",
   },
 
   // Navigation
@@ -305,6 +307,48 @@ const csTranslation = {
     configSaved: "Konfigurace bota byla úspěšně uložena!",
     configSaveError: "Nepodařilo se uložit konfiguraci bota:",
     loadError: "Nepodařilo se načíst aktuální předponu příkazů.",
+  },
+
+  // Chatbot Page
+  chatbotPage: {
+    title: "Chatbot",
+    subtitle: "Spravujte vašeho chatbota, YouTube notifikace a vlastní příkazy",
+  },
+
+  // YouTube Notifications
+  youtube: {
+    title: "YouTube notifikace",
+    subtitle: "Oznamte vašemu chatu, když nahráváte nová videa",
+    enableNotifications: "Povolit YouTube notifikace",
+    channelId: "ID YouTube kanálu",
+    channelIdHelp: "Zadejte ID vašeho YouTube kanálu (např. UC...)",
+    testChannel: "Otestovat kanál",
+    checkInterval: "Interval kontroly (minuty)",
+    checkIntervalHelp: "Jak často kontrolovat nová videa (minimálně 5 minut)",
+    notificationFormat: "Formát notifikace",
+    notificationFormatHelp:
+      "Dostupné proměnné: {title}, {url}, {channelTitle}, {videoId}, {publishedAt}",
+    lastChecked: "Naposledy zkontrolováno",
+    checkNow: "Zkontrolovat nyní",
+    saveSuccess: "Nastavení YouTube notifikací bylo úspěšně uloženo",
+    noChannelId: "Zadejte ID YouTube kanálu",
+    channelNotFound: "YouTube kanál nebyl nalezen",
+    channelFound: "Kanál nalezen: {{name}}",
+    latestVideos: "Nejnovější videa",
+    newVideoFound: "Nalezeno nové video: {{title}}",
+    noNewVideos: "Nebyla nalezena žádná nová videa",
+    helpTooltip: "Jak najít ID vašeho YouTube kanálu",
+    helpText:
+      "Pro nalezení ID vašeho YouTube kanálu přejděte na stránku vašeho YouTube kanálu, klikněte pravým tlačítkem kdekoli na stránce, vyberte 'Zobrazit zdrojový kód stránky' a vyhledejte 'channelId'. ID začíná na 'UC'.",
+  },
+
+  // Custom Commands
+  customCommands: {
+    title: "Vlastní příkazy",
+    subtitle: "Vytvořte vlastní chat příkazy pro vaše diváky",
+    comingSoon: "Funkce vlastních příkazů brzy!",
+    description:
+      "Vytvořte vlastní příkazy, na které váš chatbot bude reagovat ve vašem Twitch chatu. Budete moci nastavit automatické odpovědi, časovače a další.",
   },
 };
 

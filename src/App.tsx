@@ -16,9 +16,9 @@ import { DashboardShell } from "./components/DashboardShell";
 // Import Pages
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
-// Placeholder imports for other pages (create these files later)
-// import ChatbotPage from "./pages/ChatbotPage";
+import ChatbotPage from "./pages/ChatbotPage";
 import GamesPage from "./pages/GamesPage";
+// Placeholder imports for other pages (create these files later)
 // import ModerationPage from "./pages/ModerationPage";
 // import AnalyticsPage from "./pages/AnalyticsPage";
 // import SettingsPage from "./pages/SettingsPage";
@@ -147,8 +147,24 @@ const AppContent = () => {
           }
         />
 
+        {/* Chatbot Page */}
+        <Route
+          path="/chatbot"
+          element={
+            <ProtectedRoute user={user}>
+              <DashboardShell
+                user={user!}
+                onLogout={handleLogout}
+                activePage={activePage}
+                onNavigate={handleNavigate}
+              >
+                <ChatbotPage />
+              </DashboardShell>
+            </ProtectedRoute>
+          }
+        />
+
         {/* Add routes for other pages as they are implemented */}
-        {/* <Route path="/chatbot" element={...} /> */}
         {/* <Route path="/moderation" element={...} /> */}
         {/* <Route path="/analytics" element={...} /> */}
         {/* <Route path="/settings" element={...} /> */}

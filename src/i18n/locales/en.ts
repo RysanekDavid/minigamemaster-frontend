@@ -45,6 +45,8 @@ const enTranslation = {
     connectBot: "Connect Bot",
     disconnectBot: "Disconnect Bot",
     unknownError: "An unknown error occurred",
+    testing: "Testing...",
+    checking: "Checking...",
   },
 
   // Navigation
@@ -303,6 +305,48 @@ const enTranslation = {
     configSaved: "Bot configuration saved successfully!",
     configSaveError: "Failed to save bot configuration:",
     loadError: "Failed to load current command prefix.",
+  },
+
+  // Chatbot Page
+  chatbotPage: {
+    title: "Chatbot",
+    subtitle: "Manage your chatbot, YouTube notifications, and custom commands",
+  },
+
+  // YouTube Notifications
+  youtube: {
+    title: "YouTube Notifications",
+    subtitle: "Notify your chat when you upload new videos",
+    enableNotifications: "Enable YouTube Notifications",
+    channelId: "YouTube Channel ID",
+    channelIdHelp: "Enter your YouTube channel ID (e.g., UC...)",
+    testChannel: "Test Channel",
+    checkInterval: "Check Interval (minutes)",
+    checkIntervalHelp: "How often to check for new videos (minimum 5 minutes)",
+    notificationFormat: "Notification Format",
+    notificationFormatHelp:
+      "Available variables: {title}, {url}, {channelTitle}, {videoId}, {publishedAt}",
+    lastChecked: "Last checked",
+    checkNow: "Check Now",
+    saveSuccess: "YouTube notification settings saved successfully",
+    noChannelId: "Please enter a YouTube channel ID",
+    channelNotFound: "YouTube channel not found",
+    channelFound: "Channel found: {{name}}",
+    latestVideos: "Latest videos",
+    newVideoFound: "New video found: {{title}}",
+    noNewVideos: "No new videos found",
+    helpTooltip: "How to find your YouTube channel ID",
+    helpText:
+      "To find your YouTube channel ID, go to your YouTube channel page, right-click anywhere on the page, select 'View Page Source', and search for 'channelId'. The ID starts with 'UC'.",
+  },
+
+  // Custom Commands
+  customCommands: {
+    title: "Custom Commands",
+    subtitle: "Create custom chat commands for your viewers",
+    comingSoon: "Custom commands feature coming soon!",
+    description:
+      "Create custom commands that your chatbot will respond to in your Twitch chat. You'll be able to set up automatic responses, timers, and more.",
   },
 };
 
