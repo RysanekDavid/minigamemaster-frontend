@@ -7,6 +7,7 @@
 // Types for API requests and responses
 export interface GameDefinition {
   id: string;
+  definitionId?: string; // Some games might use definitionId instead of id
   name: string;
   description: string;
   type: string;

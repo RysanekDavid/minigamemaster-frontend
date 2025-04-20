@@ -161,7 +161,10 @@ const GamesPage: React.FC = () => {
   const handleStartGame = async (gameId: string) => {
     try {
       await GameApiService.startGame(gameId);
-      const gameToActivate = games.find((game) => game.id === gameId);
+      const gameToActivate = games.find((game) => {
+        const id = game.definitionId || game.id;
+        return id === gameId;
+      });
       if (gameToActivate) {
         setActiveGame(gameToActivate);
       }
@@ -194,9 +197,18 @@ const GamesPage: React.FC = () => {
       try {
         await GameApiService.deleteGameDefinition(gameId);
         // Remove from local state
-        setGames(games.filter((game) => game.id !== gameId));
-        if (activeGame && activeGame.id === gameId) {
-          setActiveGame(null);
+        setGames(
+          games.filter((game) => {
+            const id = game.definitionId || game.id;
+            return id !== gameId;
+          })
+        );
+
+        if (activeGame) {
+          const activeGameId = activeGame.definitionId || activeGame.id;
+          if (activeGameId === gameId) {
+            setActiveGame(null);
+          }
         }
       } catch (err) {
         console.error("Error deleting game:", err);
@@ -220,6 +232,7 @@ const GamesPage: React.FC = () => {
 
   // Handle edit dialog
   const handleOpenEditDialog = (gameId: string) => {
+    console.log("Opening edit dialog for game ID:", gameId);
     setSelectedGameId(gameId);
     setEditDialogOpen(true);
   };
@@ -230,14 +243,23 @@ const GamesPage: React.FC = () => {
   };
 
   const handleGameUpdated = (updatedGame: GameDefinition) => {
+    // Get the game ID (could be either id or definitionId)
+    const updatedGameId = updatedGame.definitionId || updatedGame.id;
+
     // Update the game in the local state
     setGames(
-      games.map((game) => (game.id === updatedGame.id ? updatedGame : game))
+      games.map((game) => {
+        const gameId = game.definitionId || game.id;
+        return gameId === updatedGameId ? updatedGame : game;
+      })
     );
 
     // If this is the active game, update it too
-    if (activeGame && activeGame.id === updatedGame.id) {
-      setActiveGame(updatedGame);
+    if (activeGame) {
+      const activeGameId = activeGame.definitionId || activeGame.id;
+      if (activeGameId === updatedGameId) {
+        setActiveGame(updatedGame);
+      }
     }
   };
 
@@ -374,7 +396,11 @@ const GamesPage: React.FC = () => {
                 game={{
                   ...game,
                   status:
-                    activeGame && activeGame.id === game.id
+                    activeGame &&
+                    (activeGame.id === game.id ||
+                      activeGame.definitionId === game.definitionId ||
+                      activeGame.id === game.definitionId ||
+                      activeGame.definitionId === game.id)
                       ? "active"
                       : "inactive",
                   plays: game.plays || 0,
@@ -506,7 +532,11 @@ const GamesPage: React.FC = () => {
                       game={{
                         ...game,
                         status:
-                          activeGame && activeGame.id === game.id
+                          activeGame &&
+                          (activeGame.id === game.id ||
+                            activeGame.definitionId === game.definitionId ||
+                            activeGame.id === game.definitionId ||
+                            activeGame.definitionId === game.id)
                             ? "active"
                             : "inactive",
                         plays: game.plays || 0,

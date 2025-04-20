@@ -5,15 +5,31 @@ import {
   Container,
   Paper,
   Typography,
-  ThemeProvider,
-  CssBaseline,
+  useTheme,
 } from "@mui/material";
 import { Gamepad2, Twitch } from "lucide-react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadFull } from "tsparticles";
-import { darkTheme, particleOptions } from "./Login.styles"; // Import particleOptions
+import { particleOptions } from "./Login.styles"; // Import particleOptions only
+import { useThemeContext } from "../ThemeProvider"; // Import theme context
 
 export default function Login() {
+  const theme = useTheme(); // Get current theme
+  const { themeMode, setThemeMode } = useThemeContext(); // Get theme context
+
+  // Force dark mode for login page
+  useEffect(() => {
+    // Store the current theme mode
+    const currentTheme = themeMode;
+    // Set dark mode for login page
+    setThemeMode("dark");
+
+    // Restore original theme when component unmounts
+    return () => {
+      setThemeMode(currentTheme);
+    };
+  }, [themeMode, setThemeMode]);
+
   const handleTwitchLogin = () => {
     window.location.href = "/api/auth/twitch";
   };
@@ -28,14 +44,12 @@ export default function Login() {
         setInit(true);
       })
       .catch((error) => {
-        // Keep error logging
         console.error("Particles engine initialization failed:", error);
       });
   }, []);
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
+    <>
       <Box
         sx={{
           position: "fixed",
@@ -44,12 +58,13 @@ export default function Login() {
           right: 0,
           bottom: 0,
           zIndex: -1,
+          bgcolor: "background.default", // Use theme background color
         }}
       >
         {init ? (
           <Particles
             id="tsparticles"
-            options={particleOptions} // Use imported options
+            options={particleOptions}
             style={{ width: "100%", height: "100%" }}
           />
         ) : null}
@@ -73,7 +88,7 @@ export default function Login() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <Gamepad2 color={darkTheme.palette.primary.main} size={32} />
+            <Gamepad2 color={theme.palette.primary.main} size={32} />
             <Typography component="h1" variant="h4" fontWeight="bold">
               MiniGameMaster
             </Typography>
@@ -97,7 +112,7 @@ export default function Login() {
               fullWidth
               variant="outlined"
               startIcon={
-                <Twitch color={darkTheme.palette.primary.main} size={16} />
+                <Twitch color={theme.palette.primary.main} size={16} />
               }
               onClick={handleTwitchLogin}
               sx={{
@@ -114,6 +129,6 @@ export default function Login() {
           </Box>
         </Paper>
       </Container>
-    </ThemeProvider>
+    </>
   );
 }

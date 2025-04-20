@@ -78,7 +78,7 @@ const EditGameDialog: React.FC<EditGameDialogProps> = ({
     try {
       // Fetch game definitions and find the specific game
       const games = await GameApiService.getGameDefinitions();
-      const gameData = games.find((g) => g.id === id);
+      const gameData = games.find((g) => g.id === id || g.definitionId === id);
 
       if (!gameData) {
         throw new Error("Game not found");
@@ -121,7 +121,8 @@ const EditGameDialog: React.FC<EditGameDialogProps> = ({
       };
 
       // Call API to update game
-      await GameApiService.updateGameDefinition(game.id, updatedGame);
+      const gameId = game.definitionId || game.id;
+      await GameApiService.updateGameDefinition(gameId, updatedGame);
 
       // Notify parent component
       onGameUpdated(updatedGame);

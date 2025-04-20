@@ -229,7 +229,7 @@ const GameCard: React.FC<GameCardProps> = ({
               <IconButton
                 size="small"
                 color="primary"
-                onClick={() => onEditGame(game.id)}
+                onClick={() => onEditGame(game.definitionId || game.id)}
                 sx={{ mr: 1 }}
               >
                 <EditIcon fontSize="small" />
@@ -240,7 +240,7 @@ const GameCard: React.FC<GameCardProps> = ({
             <IconButton
               size="small"
               color="default"
-              onClick={() => onDeleteGame(game.id)}
+              onClick={() => onDeleteGame(game.definitionId || game.id)}
               sx={{ mr: 1 }}
             >
               <DeleteIcon fontSize="small" />
@@ -251,7 +251,7 @@ const GameCard: React.FC<GameCardProps> = ({
               <IconButton
                 size="small"
                 color="default"
-                onClick={() => onDuplicateGame(game.id)}
+                onClick={() => onDuplicateGame(game.definitionId || game.id)}
                 sx={{ mr: 1 }}
               >
                 <DuplicateIcon fontSize="small" />
@@ -273,7 +273,7 @@ const GameCard: React.FC<GameCardProps> = ({
           <Button
             variant="contained"
             color="secondary"
-            onClick={() => onStartGame(game.id)}
+            onClick={() => onStartGame(game.definitionId || game.id)}
             startIcon={<PlayIcon />}
           >
             Start Game

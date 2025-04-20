@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next"; // Import translation hook
 import {
   Card,
   CardContent,
@@ -42,14 +43,59 @@ interface GuessTheNumberConfigState {
   maxNumber: number;
   autoStartEnabled?: boolean;
   autoStartIntervalMinutes?: number | string; // Allow string for empty input
+  randomizeGamesOnAutoStart?: boolean; // New option to randomize game selection
+}
+
+// Type for AI game configuration state
+interface AiGameConfigState {
+  // Common auto-start settings
+  autoStartEnabled?: boolean;
+  autoStartIntervalMinutes?: number | string;
+  randomizeGamesOnAutoStart?: boolean; // New option to randomize game selection
+
+  // Guess game specific
+  minNumber?: number;
+  maxNumber?: number;
+  maxGuesses?: number;
+  hintFrequency?: number;
+
+  // Trivia game specific
+  timePerQuestion?: number;
+  pointsPerQuestion?: number;
+  allowPartialMatches?: boolean;
+
+  // Word game specific
+  minWordLength?: number;
+  maxWordLength?: number;
+  timeLimit?: number;
+  allowPluralForms?: boolean;
+
+  // Story game specific
+  maxContributionLength?: number;
+  turnTimeLimit?: number;
 }
 
 // Type for the config object sent/received from the API
 interface GameConfigPayload {
-  minNumber?: number;
-  maxNumber?: number;
+  // Common settings
   autoStartEnabled?: boolean;
   autoStartIntervalMinutes?: number | null; // Backend uses null for empty interval
+  randomizeGamesOnAutoStart?: boolean; // New option to randomize game selection on auto-start
+
+  // Game-specific settings
+  minNumber?: number;
+  maxNumber?: number;
+  maxGuesses?: number;
+  hintFrequency?: number;
+  timePerQuestion?: number;
+  pointsPerQuestion?: number;
+  allowPartialMatches?: boolean;
+  minWordLength?: number;
+  maxWordLength?: number;
+  timeLimit?: number;
+  allowPluralForms?: boolean;
+  maxContributionLength?: number;
+  turnTimeLimit?: number;
 }
 
 interface GameManagementProps {
@@ -67,13 +113,24 @@ export const GameManagement: React.FC<GameManagementProps> = ({
   onStopGame,
   initialGameStatus,
 }) => {
+  const { t } = useTranslation(); // Initialize translation hook
   const [selectedGame, setSelectedGame] = useState("guess-the-number");
   const [guessConfig, setGuessConfig] = useState<GuessTheNumberConfigState>({
     minNumber: 1,
     maxNumber: 100,
     autoStartEnabled: false,
     autoStartIntervalMinutes: 15,
+    randomizeGamesOnAutoStart: false,
   });
+
+  const [aiGameConfig, setAiGameConfig] = useState<AiGameConfigState>({
+    autoStartEnabled: false,
+    autoStartIntervalMinutes: 15,
+    randomizeGamesOnAutoStart: false,
+  });
+
+  const [selectedGameType, setSelectedGameType] =
+    useState<string>("guess-the-number");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatusMessage, setSaveStatusMessage] = useState("");
@@ -114,7 +171,13 @@ export const GameManagement: React.FC<GameManagementProps> = ({
   };
 
   // --- Fetch AI-Generated Games ---
+  const [isLoadingGames, setIsLoadingGames] = useState(false);
+
   const fetchAiGeneratedGames = useCallback(async () => {
+    // Prevent duplicate calls while loading
+    if (isLoadingGames) return;
+
+    setIsLoadingGames(true);
     try {
       const response = await fetch("/api/games/definitions", {
         credentials: "include",
@@ -129,38 +192,161 @@ export const GameManagement: React.FC<GameManagementProps> = ({
       console.log("Fetched AI-generated games:", data);
     } catch (error) {
       console.error("Error fetching AI-generated games:", error);
+    } finally {
+      setIsLoadingGames(false);
     }
-  }, []);
+  }, [isLoadingGames]); // Only depend on the loading state
 
   // --- Fetch Config Effect ---
   const fetchGameConfig = useCallback(async () => {
     setIsFetchingConfig(true);
     setSaveStatusMessage("");
     try {
+      // First, determine if this is an AI-generated game
+      const isAiGame = selectedGame !== "guess-the-number";
+
+      // Find the game definition if it's an AI game
+      let gameType = "guess-the-number";
+      if (isAiGame) {
+        const selectedAiGame = aiGeneratedGames.find(
+          (game) => (game.definitionId || game.id) === selectedGame
+        );
+        if (selectedAiGame) {
+          gameType =
+            selectedAiGame.templateType ||
+            selectedAiGame.enhancedConfig?.gameType ||
+            "generic";
+        }
+      }
+
+      // Update the selected game type
+      setSelectedGameType(gameType);
+
+      // Fetch the configuration
       const response = await fetch(`/api/games/config/${selectedGame}`, {
         credentials: "include",
       });
       if (!response.ok)
         throw new Error(`Failed to fetch config: ${response.statusText}`);
       const data = await response.json();
+
       if (data && data.config) {
         const fetchedConfig = data.config as GameConfigPayload;
-        setGuessConfig({
-          minNumber: fetchedConfig.minNumber ?? 1,
-          maxNumber: fetchedConfig.maxNumber ?? 100,
-          autoStartEnabled: fetchedConfig.autoStartEnabled ?? false,
-          autoStartIntervalMinutes: getIntervalForState(
-            fetchedConfig.autoStartIntervalMinutes
-          ), // Convert for state
-        });
+
+        // Set auto-start status for all game types
         setSavedAutoStartEnabled(fetchedConfig.autoStartEnabled ?? false);
+
+        if (selectedGame === "guess-the-number") {
+          // Handle hardcoded game config
+          setGuessConfig({
+            minNumber: fetchedConfig.minNumber ?? 1,
+            maxNumber: fetchedConfig.maxNumber ?? 100,
+            autoStartEnabled: fetchedConfig.autoStartEnabled ?? false,
+            autoStartIntervalMinutes: getIntervalForState(
+              fetchedConfig.autoStartIntervalMinutes
+            ),
+            randomizeGamesOnAutoStart:
+              fetchedConfig.randomizeGamesOnAutoStart ?? false,
+          });
+        } else {
+          // Handle AI-generated game config
+          setAiGameConfig({
+            // Common settings
+            autoStartEnabled: fetchedConfig.autoStartEnabled ?? false,
+            autoStartIntervalMinutes: getIntervalForState(
+              fetchedConfig.autoStartIntervalMinutes
+            ),
+            randomizeGamesOnAutoStart:
+              fetchedConfig.randomizeGamesOnAutoStart ?? false,
+
+            // Game-specific settings based on game type
+            ...(gameType === "guess" || gameType === "guess-the-number"
+              ? {
+                  minNumber: fetchedConfig.minNumber ?? 1,
+                  maxNumber: fetchedConfig.maxNumber ?? 100,
+                  maxGuesses: fetchedConfig.maxGuesses ?? 0,
+                  hintFrequency: fetchedConfig.hintFrequency ?? 5,
+                }
+              : {}),
+
+            ...(gameType === "trivia"
+              ? {
+                  timePerQuestion: fetchedConfig.timePerQuestion ?? 30,
+                  pointsPerQuestion: fetchedConfig.pointsPerQuestion ?? 10,
+                  allowPartialMatches:
+                    fetchedConfig.allowPartialMatches ?? true,
+                }
+              : {}),
+
+            ...(gameType === "word"
+              ? {
+                  minWordLength: fetchedConfig.minWordLength ?? 3,
+                  maxWordLength: fetchedConfig.maxWordLength ?? 10,
+                  timeLimit: fetchedConfig.timeLimit ?? 60,
+                  allowPluralForms: fetchedConfig.allowPluralForms ?? true,
+                }
+              : {}),
+
+            ...(gameType === "story"
+              ? {
+                  maxContributionLength:
+                    fetchedConfig.maxContributionLength ?? 100,
+                  turnTimeLimit: fetchedConfig.turnTimeLimit ?? 60,
+                }
+              : {}),
+          });
+        }
       } else {
-        setGuessConfig({
-          minNumber: 1,
-          maxNumber: 100,
-          autoStartEnabled: false,
-          autoStartIntervalMinutes: 15,
-        });
+        // Set defaults if no config found
+        if (selectedGame === "guess-the-number") {
+          setGuessConfig({
+            minNumber: 1,
+            maxNumber: 100,
+            autoStartEnabled: false,
+            autoStartIntervalMinutes: 15,
+            randomizeGamesOnAutoStart: false,
+          });
+        } else {
+          setAiGameConfig({
+            autoStartEnabled: false,
+            autoStartIntervalMinutes: 15,
+            randomizeGamesOnAutoStart: false,
+
+            // Set defaults based on game type
+            ...(gameType === "guess"
+              ? {
+                  minNumber: 1,
+                  maxNumber: 100,
+                  maxGuesses: 0,
+                  hintFrequency: 5,
+                }
+              : {}),
+
+            ...(gameType === "trivia"
+              ? {
+                  timePerQuestion: 30,
+                  pointsPerQuestion: 10,
+                  allowPartialMatches: true,
+                }
+              : {}),
+
+            ...(gameType === "word"
+              ? {
+                  minWordLength: 3,
+                  maxWordLength: 10,
+                  timeLimit: 60,
+                  allowPluralForms: true,
+                }
+              : {}),
+
+            ...(gameType === "story"
+              ? {
+                  maxContributionLength: 100,
+                  turnTimeLimit: 60,
+                }
+              : {}),
+          });
+        }
         setSavedAutoStartEnabled(false);
       }
     } catch (error) {
@@ -170,30 +356,60 @@ export const GameManagement: React.FC<GameManagementProps> = ({
           ? `Error loading config: ${error.message}`
           : "Error loading config"
       );
-      setGuessConfig({
-        minNumber: 1,
-        maxNumber: 100,
-        autoStartEnabled: false,
-        autoStartIntervalMinutes: 15,
-      });
+
+      // Set defaults on error
+      if (selectedGame === "guess-the-number") {
+        setGuessConfig({
+          minNumber: 1,
+          maxNumber: 100,
+          autoStartEnabled: false,
+          autoStartIntervalMinutes: 15,
+          randomizeGamesOnAutoStart: false,
+        });
+      } else {
+        setAiGameConfig({
+          autoStartEnabled: false,
+          autoStartIntervalMinutes: 15,
+          randomizeGamesOnAutoStart: false,
+        });
+      }
       setSavedAutoStartEnabled(false);
     } finally {
       setIsFetchingConfig(false);
     }
-  }, [selectedGame]);
+  }, [selectedGame, aiGeneratedGames]);
 
+  // Initial data loading effect
   useEffect(() => {
-    fetchGameConfig();
+    // Fetch AI-generated games first
     fetchAiGeneratedGames();
-  }, [fetchGameConfig, fetchAiGeneratedGames]);
+    // We'll fetch the game config in a separate effect
+  }, []); // Empty dependency array means this runs once on mount
+
+  // Effect to fetch game config when selected game changes or after AI games are loaded
+  useEffect(() => {
+    if (selectedGame) {
+      fetchGameConfig();
+    }
+  }, [selectedGame, fetchGameConfig]);
 
   // --- Handle AI Game Created ---
   const handleGameCreated = useCallback((gameDefinition: any) => {
     console.log("New game created:", gameDefinition);
-    // Add the new game to the list
-    setAiGeneratedGames((prev) => [gameDefinition, ...prev]);
-    // Optionally, you could select the new game here
-    // setSelectedGame(gameDefinition.id);
+    // Add the new game to the list without triggering a full reload
+    setAiGeneratedGames((prev) => {
+      // Check if the game already exists in the list
+      const gameId = gameDefinition.definitionId || gameDefinition.id;
+      const exists = prev.some(
+        (game) => (game.definitionId || game.id) === gameId
+      );
+
+      // Only add if it doesn't exist
+      return exists ? prev : [gameDefinition, ...prev];
+    });
+
+    // Optionally, select the new game
+    // setSelectedGame(gameDefinition.definitionId || gameDefinition.id);
   }, []);
 
   // --- Handle Delete Game ---
@@ -262,21 +478,61 @@ export const GameManagement: React.FC<GameManagementProps> = ({
 
   // --- Handlers ---
 
-  // NEW: Handler to save only Min/Max numbers
+  // Handler to save basic game configuration
   const handleSaveBaseConfig = async () => {
     setIsSaving(true);
     setSaveStatusMessage("");
 
-    // Only send min/max numbers
-    const configToSend: Partial<GameConfigPayload> = {
-      // Use Partial<>
-      minNumber: guessConfig.minNumber,
-      maxNumber: guessConfig.maxNumber,
-    };
+    // Prepare config based on game type
+    let configToSend: Partial<GameConfigPayload> = {};
+
+    if (selectedGame === "guess-the-number") {
+      // For hardcoded Guess the Number game
+      configToSend = {
+        minNumber: guessConfig.minNumber,
+        maxNumber: guessConfig.maxNumber,
+      };
+    } else {
+      // For AI-generated games
+      switch (selectedGameType) {
+        case "guess":
+          configToSend = {
+            minNumber: aiGameConfig.minNumber,
+            maxNumber: aiGameConfig.maxNumber,
+            maxGuesses: aiGameConfig.maxGuesses,
+            hintFrequency: aiGameConfig.hintFrequency,
+          };
+          break;
+        case "trivia":
+          configToSend = {
+            timePerQuestion: aiGameConfig.timePerQuestion,
+            pointsPerQuestion: aiGameConfig.pointsPerQuestion,
+            allowPartialMatches: aiGameConfig.allowPartialMatches,
+          };
+          break;
+        case "word":
+          configToSend = {
+            minWordLength: aiGameConfig.minWordLength,
+            maxWordLength: aiGameConfig.maxWordLength,
+            timeLimit: aiGameConfig.timeLimit,
+            allowPluralForms: aiGameConfig.allowPluralForms,
+          };
+          break;
+        case "story":
+          configToSend = {
+            maxContributionLength: aiGameConfig.maxContributionLength,
+            turnTimeLimit: aiGameConfig.turnTimeLimit,
+          };
+          break;
+        default:
+          // For other game types, just send auto-start settings
+          break;
+      }
+    }
 
     const payload = {
       gameId: selectedGame,
-      config: selectedGame === "guess-the-number" ? configToSend : {},
+      config: configToSend,
     };
 
     try {
@@ -311,27 +567,24 @@ export const GameManagement: React.FC<GameManagementProps> = ({
     }
   };
 
-  // NEW: Handler to save ALL settings including enabling Auto-Start
+  // Handler to save ALL settings including enabling Auto-Start
   const handleSaveWithAutoStart = async () => {
     setIsSaving(true);
     setSaveStatusMessage("");
 
+    // Get the current interval based on game type
     const currentIntervalForPayload = getIntervalForPayload(
-      guessConfig.autoStartIntervalMinutes
+      selectedGame === "guess-the-number"
+        ? guessConfig.autoStartIntervalMinutes
+        : aiGameConfig.autoStartIntervalMinutes
     );
 
-    // Send all config, explicitly enabling autoStart
-    const configToSend: GameConfigPayload = {
-      minNumber: guessConfig.minNumber,
-      maxNumber: guessConfig.maxNumber,
-      autoStartEnabled: true, // Explicitly true
-      autoStartIntervalMinutes: currentIntervalForPayload,
-    };
-
     // Validate interval since autoStart is being enabled
-    const interval = configToSend.autoStartIntervalMinutes; // Type is number | null
-    // Check for undefined, null, or less than 3
-    if (typeof interval === "undefined" || interval === null || interval < 3) {
+    if (
+      typeof currentIntervalForPayload === "undefined" ||
+      currentIntervalForPayload === null ||
+      currentIntervalForPayload < 3
+    ) {
       setSaveStatusMessage(
         "Error: Auto-start interval must be 3 minutes or more."
       );
@@ -339,9 +592,69 @@ export const GameManagement: React.FC<GameManagementProps> = ({
       return;
     }
 
+    // Prepare config based on game type
+    let configToSend: Partial<GameConfigPayload> = {
+      // Always include auto-start settings
+      autoStartEnabled: true, // Explicitly true
+      autoStartIntervalMinutes: currentIntervalForPayload,
+      randomizeGamesOnAutoStart:
+        selectedGame === "guess-the-number"
+          ? guessConfig.randomizeGamesOnAutoStart
+          : aiGameConfig.randomizeGamesOnAutoStart,
+    };
+
+    if (selectedGame === "guess-the-number") {
+      // For hardcoded Guess the Number game
+      configToSend = {
+        ...configToSend,
+        minNumber: guessConfig.minNumber,
+        maxNumber: guessConfig.maxNumber,
+      };
+    } else {
+      // For AI-generated games
+      switch (selectedGameType) {
+        case "guess":
+          configToSend = {
+            ...configToSend,
+            minNumber: aiGameConfig.minNumber,
+            maxNumber: aiGameConfig.maxNumber,
+            maxGuesses: aiGameConfig.maxGuesses,
+            hintFrequency: aiGameConfig.hintFrequency,
+          };
+          break;
+        case "trivia":
+          configToSend = {
+            ...configToSend,
+            timePerQuestion: aiGameConfig.timePerQuestion,
+            pointsPerQuestion: aiGameConfig.pointsPerQuestion,
+            allowPartialMatches: aiGameConfig.allowPartialMatches,
+          };
+          break;
+        case "word":
+          configToSend = {
+            ...configToSend,
+            minWordLength: aiGameConfig.minWordLength,
+            maxWordLength: aiGameConfig.maxWordLength,
+            timeLimit: aiGameConfig.timeLimit,
+            allowPluralForms: aiGameConfig.allowPluralForms,
+          };
+          break;
+        case "story":
+          configToSend = {
+            ...configToSend,
+            maxContributionLength: aiGameConfig.maxContributionLength,
+            turnTimeLimit: aiGameConfig.turnTimeLimit,
+          };
+          break;
+        default:
+          // For other game types, just send auto-start settings
+          break;
+      }
+    }
+
     const payload = {
       gameId: selectedGame,
-      config: selectedGame === "guess-the-number" ? configToSend : {},
+      config: configToSend,
     };
 
     try {
@@ -381,14 +694,63 @@ export const GameManagement: React.FC<GameManagementProps> = ({
     setSaveStatusMessage("");
     console.log("Disabling auto-start for:", selectedGame);
 
-    // Prepare payload with autoStart disabled and null interval
-    const configToDisable: GameConfigPayload = {
-      minNumber: guessConfig.minNumber,
-      maxNumber: guessConfig.maxNumber,
+    // Prepare config based on game type
+    let configToSend: Partial<GameConfigPayload> = {
+      // Always include auto-start settings
       autoStartEnabled: false,
       autoStartIntervalMinutes: null, // Send null when disabling
     };
-    const payload = { gameId: selectedGame, config: configToDisable };
+
+    if (selectedGame === "guess-the-number") {
+      // For hardcoded Guess the Number game
+      configToSend = {
+        ...configToSend,
+        minNumber: guessConfig.minNumber,
+        maxNumber: guessConfig.maxNumber,
+      };
+    } else {
+      // For AI-generated games
+      switch (selectedGameType) {
+        case "guess":
+          configToSend = {
+            ...configToSend,
+            minNumber: aiGameConfig.minNumber,
+            maxNumber: aiGameConfig.maxNumber,
+            maxGuesses: aiGameConfig.maxGuesses,
+            hintFrequency: aiGameConfig.hintFrequency,
+          };
+          break;
+        case "trivia":
+          configToSend = {
+            ...configToSend,
+            timePerQuestion: aiGameConfig.timePerQuestion,
+            pointsPerQuestion: aiGameConfig.pointsPerQuestion,
+            allowPartialMatches: aiGameConfig.allowPartialMatches,
+          };
+          break;
+        case "word":
+          configToSend = {
+            ...configToSend,
+            minWordLength: aiGameConfig.minWordLength,
+            maxWordLength: aiGameConfig.maxWordLength,
+            timeLimit: aiGameConfig.timeLimit,
+            allowPluralForms: aiGameConfig.allowPluralForms,
+          };
+          break;
+        case "story":
+          configToSend = {
+            ...configToSend,
+            maxContributionLength: aiGameConfig.maxContributionLength,
+            turnTimeLimit: aiGameConfig.turnTimeLimit,
+          };
+          break;
+        default:
+          // For other game types, just send auto-start settings
+          break;
+      }
+    }
+
+    const payload = { gameId: selectedGame, config: configToSend };
 
     try {
       const response = await fetch("/api/games/config", {
@@ -408,12 +770,22 @@ export const GameManagement: React.FC<GameManagementProps> = ({
       setSaveStatusMessage(
         result.message || "Auto-start disabled successfully!"
       );
+
       // Update form state to reflect disabled status
-      setGuessConfig((prev) => ({
-        ...prev,
-        autoStartEnabled: false,
-        autoStartIntervalMinutes: "", // Set interval to empty string in state
-      }));
+      if (selectedGame === "guess-the-number") {
+        setGuessConfig((prev) => ({
+          ...prev,
+          autoStartEnabled: false,
+          autoStartIntervalMinutes: "", // Set interval to empty string in state
+        }));
+      } else {
+        setAiGameConfig((prev) => ({
+          ...prev,
+          autoStartEnabled: false,
+          autoStartIntervalMinutes: "", // Set interval to empty string in state
+        }));
+      }
+
       setSavedAutoStartEnabled(false);
     } catch (error) {
       setSaveStatusMessage(
@@ -431,13 +803,54 @@ export const GameManagement: React.FC<GameManagementProps> = ({
     setIsActionLoading(true);
     setActionError(null);
     try {
-      // Only pass min/max when starting manually
-      const optionsToSend: Partial<GameConfigPayload> = {
-        minNumber: guessConfig.minNumber,
-        maxNumber: guessConfig.maxNumber,
-      };
-      const options = selectedGame === "guess-the-number" ? optionsToSend : {};
-      await onStartGame(selectedGame, options);
+      // Prepare options based on game type
+      let optionsToSend: Partial<GameConfigPayload> = {};
+
+      if (selectedGame === "guess-the-number") {
+        // For hardcoded Guess the Number game
+        optionsToSend = {
+          minNumber: guessConfig.minNumber,
+          maxNumber: guessConfig.maxNumber,
+        };
+      } else {
+        // For AI-generated games
+        switch (selectedGameType) {
+          case "guess":
+            optionsToSend = {
+              minNumber: aiGameConfig.minNumber,
+              maxNumber: aiGameConfig.maxNumber,
+              maxGuesses: aiGameConfig.maxGuesses,
+              hintFrequency: aiGameConfig.hintFrequency,
+            };
+            break;
+          case "trivia":
+            optionsToSend = {
+              timePerQuestion: aiGameConfig.timePerQuestion,
+              pointsPerQuestion: aiGameConfig.pointsPerQuestion,
+              allowPartialMatches: aiGameConfig.allowPartialMatches,
+            };
+            break;
+          case "word":
+            optionsToSend = {
+              minWordLength: aiGameConfig.minWordLength,
+              maxWordLength: aiGameConfig.maxWordLength,
+              timeLimit: aiGameConfig.timeLimit,
+              allowPluralForms: aiGameConfig.allowPluralForms,
+            };
+            break;
+          case "story":
+            optionsToSend = {
+              maxContributionLength: aiGameConfig.maxContributionLength,
+              turnTimeLimit: aiGameConfig.turnTimeLimit,
+            };
+            break;
+          default:
+            // For other game types, send empty options
+            break;
+        }
+      }
+
+      await onStartGame(selectedGame, optionsToSend);
       setGameStatus({ isActive: true, name: selectedGame });
     } catch (err) {
       console.error("Error starting game:", err);
@@ -488,8 +901,8 @@ export const GameManagement: React.FC<GameManagementProps> = ({
             <GamepadIcon />
           </Avatar>
         }
-        title="Game Management"
-        subheader="Start, stop, and configure mini-games"
+        title={t("gameManagement.title")}
+        subheader={t("gameManagement.subtitle")}
         action={
           <Button
             variant="outlined"
@@ -497,14 +910,14 @@ export const GameManagement: React.FC<GameManagementProps> = ({
             onClick={() => setIsWizardOpen(true)} // Open the wizard
             sx={{ mr: 1 }}
           >
-            New Game
+            {t("gameManagement.newGame")}
           </Button>
         }
       />
       {/* Game Status and Controls Section */}
       <CardContent sx={{ flexGrow: 0 }}>
         <Typography variant="h6" gutterBottom>
-          Game Status
+          {t("gameManagement.gameStatus")}
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
           <Box
@@ -521,12 +934,14 @@ export const GameManagement: React.FC<GameManagementProps> = ({
           />
           <Typography variant="body1">
             {isActionLoading && !isSaving
-              ? "Processing..."
+              ? t("gameManagement.processing")
               : isGameActive
-              ? `Active: ${gameStatus?.name || "Unknown Game"}`
+              ? `${t("gameManagement.active")} ${
+                  gameStatus?.name || "Unknown Game"
+                }`
               : savedAutoStartEnabled
-              ? "Auto-start enabled"
-              : "No game active"}
+              ? t("gameManagement.autoStartEnabled")
+              : t("gameManagement.noGameActive")}
           </Typography>
         </Box>
         {actionError && (
@@ -550,7 +965,7 @@ export const GameManagement: React.FC<GameManagementProps> = ({
             disabled={isGameActive || savedAutoStartEnabled || disableActions}
             sx={{ flexGrow: 1 }}
           >
-            Start Game
+            {t("gameManagement.startGame")}
           </Button>
           <Button
             variant="contained"
@@ -567,7 +982,7 @@ export const GameManagement: React.FC<GameManagementProps> = ({
             disabled={!isGameActive || savedAutoStartEnabled || disableActions}
             sx={{ flexGrow: 1 }}
           >
-            Stop Game
+            {t("gameManagement.stopGame")}
           </Button>
         </Box>
       </CardContent>
@@ -577,22 +992,24 @@ export const GameManagement: React.FC<GameManagementProps> = ({
       {/* Game Configuration Section */}
       <CardContent sx={{ flexGrow: 1, overflowY: "auto" }}>
         <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-          Game Configuration
+          {t("gameConfig.title")}
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <FormControl fullWidth size="small" disabled={disableConfigInputs}>
             <InputLabel id="game-config-select-label">
-              Select Game to Configure
+              {t("gameManagement.selectGameToConfig")}
             </InputLabel>
             <Select
               labelId="game-config-select-label"
               id="game-config-select"
               value={selectedGame}
-              label="Select Game to Configure"
+              label={t("gameManagement.selectGameToConfig")}
               onChange={(e) => setSelectedGame(e.target.value)}
               disabled={disableConfigInputs}
             >
-              <MenuItem value="guess-the-number">Guess the Number</MenuItem>
+              <MenuItem value="guess-the-number">
+                {t("gameConfig.guessTheNumber")}
+              </MenuItem>
               {/* Add AI-generated games to the dropdown */}
               {aiGeneratedGames.map((game) => {
                 const gameId = game.definitionId || game.id;
@@ -607,7 +1024,9 @@ export const GameManagement: React.FC<GameManagementProps> = ({
                       pr: 6, // Add padding for the delete button
                     }}
                   >
-                    <ListItemText primary={`${game.name} (AI-Generated)`} />
+                    <ListItemText
+                      primary={`${game.name} (${t("gameConfig.aiGenerated")})`}
+                    />
                     {/* Only show delete button when dropdown is open and not when selected */}
                     <Box
                       sx={{
@@ -641,11 +1060,12 @@ export const GameManagement: React.FC<GameManagementProps> = ({
             </Select>
           </FormControl>
 
+          {/* Hardcoded Guess the Number Game Configuration */}
           {selectedGame === "guess-the-number" && (
             <>
               <TextField
                 id="config-min-number"
-                label="Min Number (1-999)"
+                label={t("gameManagement.minNumberRange")}
                 type="number"
                 InputProps={{ inputProps: { min: 1, max: 999 } }}
                 value={guessConfig.minNumber}
@@ -667,7 +1087,9 @@ export const GameManagement: React.FC<GameManagementProps> = ({
               />
               <TextField
                 id="config-max-number"
-                label={`Max Number (${guessConfig.minNumber + 1}-1000)`}
+                label={t("gameManagement.maxNumberRange", {
+                  min: guessConfig.minNumber + 1,
+                })}
                 type="number"
                 InputProps={{
                   inputProps: { min: guessConfig.minNumber + 1, max: 1000 },
@@ -694,7 +1116,9 @@ export const GameManagement: React.FC<GameManagementProps> = ({
                 disabled={isSaving || isGameActive || isFetchingConfig}
                 sx={{ mt: 1 }} // Add some margin
               >
-                {isSaving ? "Saving..." : "Save Min/Max Config"}
+                {isSaving
+                  ? t("common.saving")
+                  : t("gameManagement.saveMinMaxConfig")}
               </Button>
               {/* --- End Button to save only Min/Max --- */}
 
@@ -713,41 +1137,506 @@ export const GameManagement: React.FC<GameManagementProps> = ({
                     disabled={disableConfigInputs}
                   />
                 }
-                label="Enable Automatic Game Start"
+                label={t("gameManagement.enableAutoStart")}
                 sx={{ mt: 1 }}
               />
               {guessConfig.autoStartEnabled && (
-                <TextField
-                  id="auto-start-interval"
-                  label="Start Interval (minutes, 3-1440)"
-                  type="number"
-                  InputProps={{ inputProps: { min: 3, max: 1440 } }}
-                  value={guessConfig.autoStartIntervalMinutes ?? ""}
-                  onChange={(e) => {
-                    const rawValue = e.target.value;
-                    if (rawValue === "") {
-                      setGuessConfig((prev) => ({
-                        ...prev,
-                        autoStartIntervalMinutes: "",
-                      }));
-                    } else {
-                      const val = parseInt(rawValue, 10);
-                      const clampedVal = isNaN(val)
-                        ? 3
-                        : Math.max(3, Math.min(1440, val));
-                      setGuessConfig((prev) => ({
-                        ...prev,
-                        autoStartIntervalMinutes: clampedVal,
-                      }));
+                <>
+                  <TextField
+                    id="auto-start-interval"
+                    label={t("gameConfig.autoStartInterval")}
+                    type="number"
+                    InputProps={{ inputProps: { min: 3, max: 1440 } }}
+                    value={guessConfig.autoStartIntervalMinutes ?? ""}
+                    onChange={(e) => {
+                      const rawValue = e.target.value;
+                      if (rawValue === "") {
+                        setGuessConfig((prev) => ({
+                          ...prev,
+                          autoStartIntervalMinutes: "",
+                        }));
+                      } else {
+                        const val = parseInt(rawValue, 10);
+                        const clampedVal = isNaN(val)
+                          ? 3
+                          : Math.max(3, Math.min(1440, val));
+                        setGuessConfig((prev) => ({
+                          ...prev,
+                          autoStartIntervalMinutes: clampedVal,
+                        }));
+                      }
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={
+                      !guessConfig.autoStartEnabled || disableConfigInputs
                     }
-                  }}
-                  fullWidth
-                  variant="outlined"
-                  size="small"
-                  disabled={
-                    !guessConfig.autoStartEnabled || disableConfigInputs
-                  }
-                />
+                    sx={{ mb: 1 }}
+                  />
+
+                  {/* Randomize Games Checkbox */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        id="randomize-games-on-auto-start"
+                        checked={guessConfig.randomizeGamesOnAutoStart ?? false}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setGuessConfig((prev) => ({
+                            ...prev,
+                            randomizeGamesOnAutoStart: e.target.checked,
+                          }))
+                        }
+                        size="small"
+                        disabled={disableConfigInputs}
+                      />
+                    }
+                    label={t("gameConfig.randomizeGames")}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", ml: 4, mt: -1 }}
+                  >
+                    {t("gameConfig.randomizeDescription")}
+                  </Typography>
+                </>
+              )}
+            </>
+          )}
+
+          {/* AI-Generated Game Configuration */}
+          {selectedGame !== "guess-the-number" && (
+            <>
+              {/* Game Type Specific Configuration */}
+              {selectedGameType === "guess" && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Guess Game Settings
+                  </Typography>
+                  <TextField
+                    id="ai-config-min-number"
+                    label="Min Number (1-999)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 1, max: 999 } }}
+                    value={aiGameConfig.minNumber || 1}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newMin = isNaN(val)
+                        ? 1
+                        : Math.max(1, Math.min(999, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        minNumber: newMin,
+                        maxNumber: Math.max(newMin + 1, prev.maxNumber || 100),
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-max-number"
+                    label={`Max Number (${
+                      (aiGameConfig.minNumber || 1) + 1
+                    }-1000)`}
+                    type="number"
+                    InputProps={{
+                      inputProps: {
+                        min: (aiGameConfig.minNumber || 1) + 1,
+                        max: 1000,
+                      },
+                    }}
+                    value={aiGameConfig.maxNumber || 100}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newMax = isNaN(val)
+                        ? (aiGameConfig.minNumber || 1) + 1
+                        : Math.max(
+                            (aiGameConfig.minNumber || 1) + 1,
+                            Math.min(1000, val)
+                          );
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        maxNumber: newMax,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-max-guesses"
+                    label="Max Guesses (0 for unlimited)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 0, max: 100 } }}
+                    value={aiGameConfig.maxGuesses || 0}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 0
+                        : Math.max(0, Math.min(100, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        maxGuesses: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-hint-frequency"
+                    label="Hint Frequency (guesses between hints, 0 for no hints)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 0, max: 20 } }}
+                    value={aiGameConfig.hintFrequency || 5}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 5
+                        : Math.max(0, Math.min(20, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        hintFrequency: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                </>
+              )}
+
+              {selectedGameType === "trivia" && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Trivia Game Settings
+                  </Typography>
+                  <TextField
+                    id="ai-config-time-per-question"
+                    label="Time Per Question (seconds)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 10, max: 300 } }}
+                    value={aiGameConfig.timePerQuestion || 30}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 30
+                        : Math.max(10, Math.min(300, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        timePerQuestion: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-points-per-question"
+                    label="Points Per Question"
+                    type="number"
+                    InputProps={{ inputProps: { min: 1, max: 100 } }}
+                    value={aiGameConfig.pointsPerQuestion || 10}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 10
+                        : Math.max(1, Math.min(100, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        pointsPerQuestion: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        id="ai-config-allow-partial-matches"
+                        checked={aiGameConfig.allowPartialMatches ?? true}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAiGameConfig((prev) => ({
+                            ...prev,
+                            allowPartialMatches: e.target.checked,
+                          }))
+                        }
+                        size="small"
+                        disabled={disableConfigInputs}
+                      />
+                    }
+                    label="Allow Partial Matches"
+                    sx={{ mb: 1 }}
+                  />
+                </>
+              )}
+
+              {selectedGameType === "word" && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Word Game Settings
+                  </Typography>
+                  <TextField
+                    id="ai-config-min-word-length"
+                    label="Min Word Length"
+                    type="number"
+                    InputProps={{ inputProps: { min: 2, max: 10 } }}
+                    value={aiGameConfig.minWordLength || 3}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 3
+                        : Math.max(2, Math.min(10, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        minWordLength: newVal,
+                        maxWordLength: Math.max(
+                          newVal,
+                          prev.maxWordLength || 10
+                        ),
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-max-word-length"
+                    label="Max Word Length"
+                    type="number"
+                    InputProps={{
+                      inputProps: {
+                        min: aiGameConfig.minWordLength || 3,
+                        max: 20,
+                      },
+                    }}
+                    value={aiGameConfig.maxWordLength || 10}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 10
+                        : Math.max(
+                            aiGameConfig.minWordLength || 3,
+                            Math.min(20, val)
+                          );
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        maxWordLength: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-time-limit"
+                    label="Time Limit (seconds)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 10, max: 300 } }}
+                    value={aiGameConfig.timeLimit || 60}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 60
+                        : Math.max(10, Math.min(300, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        timeLimit: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        id="ai-config-allow-plural-forms"
+                        checked={aiGameConfig.allowPluralForms ?? true}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAiGameConfig((prev) => ({
+                            ...prev,
+                            allowPluralForms: e.target.checked,
+                          }))
+                        }
+                        size="small"
+                        disabled={disableConfigInputs}
+                      />
+                    }
+                    label="Allow Plural Forms"
+                    sx={{ mb: 1 }}
+                  />
+                </>
+              )}
+
+              {selectedGameType === "story" && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Story Game Settings
+                  </Typography>
+                  <TextField
+                    id="ai-config-max-contribution-length"
+                    label="Max Contribution Length (characters)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 50, max: 500 } }}
+                    value={aiGameConfig.maxContributionLength || 100}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 100
+                        : Math.max(50, Math.min(500, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        maxContributionLength: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    id="ai-config-turn-time-limit"
+                    label="Turn Time Limit (seconds)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 10, max: 300 } }}
+                    value={aiGameConfig.turnTimeLimit || 60}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const newVal = isNaN(val)
+                        ? 60
+                        : Math.max(10, Math.min(300, val));
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        turnTimeLimit: newVal,
+                      }));
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={disableConfigInputs}
+                    sx={{ mb: 1 }}
+                  />
+                </>
+              )}
+
+              {/* Button to save game-specific settings */}
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={<SaveIcon />}
+                onClick={handleSaveBaseConfig}
+                disabled={isSaving || isGameActive || isFetchingConfig}
+                sx={{ mt: 1 }}
+              >
+                {isSaving ? "Saving..." : "Save Game Settings"}
+              </Button>
+
+              {/* Auto-start settings for AI games */}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    id="ai-auto-start-enabled"
+                    checked={aiGameConfig.autoStartEnabled ?? false}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setAiGameConfig((prev) => ({
+                        ...prev,
+                        autoStartEnabled: e.target.checked,
+                      }))
+                    }
+                    size="small"
+                    disabled={disableConfigInputs}
+                  />
+                }
+                label="Enable Automatic Game Start"
+                sx={{ mt: 2 }}
+              />
+              {aiGameConfig.autoStartEnabled && (
+                <>
+                  <TextField
+                    id="ai-auto-start-interval"
+                    label="Start Interval (minutes, 3-1440)"
+                    type="number"
+                    InputProps={{ inputProps: { min: 3, max: 1440 } }}
+                    value={aiGameConfig.autoStartIntervalMinutes ?? ""}
+                    onChange={(e) => {
+                      const rawValue = e.target.value;
+                      if (rawValue === "") {
+                        setAiGameConfig((prev) => ({
+                          ...prev,
+                          autoStartIntervalMinutes: "",
+                        }));
+                      } else {
+                        const val = parseInt(rawValue, 10);
+                        const clampedVal = isNaN(val)
+                          ? 3
+                          : Math.max(3, Math.min(1440, val));
+                        setAiGameConfig((prev) => ({
+                          ...prev,
+                          autoStartIntervalMinutes: clampedVal,
+                        }));
+                      }
+                    }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={
+                      !aiGameConfig.autoStartEnabled || disableConfigInputs
+                    }
+                    sx={{ mt: 1, mb: 1 }}
+                  />
+
+                  {/* Randomize Games Checkbox */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        id="ai-randomize-games-on-auto-start"
+                        checked={
+                          aiGameConfig.randomizeGamesOnAutoStart ?? false
+                        }
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAiGameConfig((prev) => ({
+                            ...prev,
+                            randomizeGamesOnAutoStart: e.target.checked,
+                          }))
+                        }
+                        size="small"
+                        disabled={disableConfigInputs}
+                      />
+                    }
+                    label="Randomize Game Selection on Auto-Start"
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", ml: 4, mt: -1 }}
+                  >
+                    When enabled, a random game will be selected from your
+                    available games each time auto-start triggers
+                  </Typography>
+                </>
               )}
             </>
           )}
@@ -755,7 +1644,10 @@ export const GameManagement: React.FC<GameManagementProps> = ({
           {/* --- Conditional Save/Action Buttons for Auto-Start --- */}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
             {/* "Save Config & Auto-Start Settings" button - Green, visible only when checkbox IS checked */}
-            {guessConfig.autoStartEnabled && (
+            {((selectedGame === "guess-the-number" &&
+              guessConfig.autoStartEnabled) ||
+              (selectedGame !== "guess-the-number" &&
+                aiGameConfig.autoStartEnabled)) && (
               <Button
                 variant="contained"
                 color="success" // Keep green

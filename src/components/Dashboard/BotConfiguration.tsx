@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"; // Import useEffect
+import { useTranslation } from "react-i18next"; // Import translation hook
 import {
   Card,
   CardContent,
@@ -17,6 +18,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 
 export const BotConfiguration: React.FC = () => {
   // Remove props
+  const { t } = useTranslation(); // Initialize translation hook
   const [commandPrefix, setCommandPrefix] = useState("!"); // Default to '!' initially
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true); // State for initial fetch
@@ -40,7 +42,7 @@ export const BotConfiguration: React.FC = () => {
         setCommandPrefix(data.prefix || "!"); // Set fetched prefix or default
       } catch (error) {
         console.error("Error fetching command prefix:", error);
-        setErrorMessage("Failed to load current command prefix.");
+        setErrorMessage(t("botConfig.loadError"));
       } finally {
         setIsFetching(false);
       }
@@ -74,11 +76,11 @@ export const BotConfiguration: React.FC = () => {
         );
       }
 
-      setStatusMessage("Bot configuration saved successfully!");
+      setStatusMessage(t("botConfig.configSaved"));
     } catch (error: any) {
       // Catch any type for error message
       setStatusMessage(""); // Clear success message
-      setErrorMessage(`Failed to save bot configuration: ${error.message}`);
+      setErrorMessage(`${t("botConfig.configSaveError")} ${error.message}`);
       console.error("Error saving bot config:", error);
     } finally {
       setIsLoading(false);
@@ -93,14 +95,14 @@ export const BotConfiguration: React.FC = () => {
             <SettingsIcon />
           </Avatar>
         }
-        title="Bot Configuration"
-        subheader="Configure your bot's behavior"
+        title={t("botConfig.title")}
+        subheader={t("botConfig.subtitle")}
       />
       <CardContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <TextField
             id="command-prefix"
-            label="Command Prefix"
+            label={t("botConfig.commandPrefix")}
             value={commandPrefix}
             onChange={(e) => setCommandPrefix(e.target.value)}
             inputProps={{ maxLength: 3 }}
@@ -110,13 +112,10 @@ export const BotConfiguration: React.FC = () => {
             disabled={isFetching || isLoading} // Disable while fetching or saving
           />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This is the character (or characters, max 3) that viewers in your
-            Twitch chat must type before a command name for the bot to recognize
-            it.
+            {t("botConfig.commandPrefixDescription")}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Example: If the prefix is '!', viewers would type '!guess 10' or
-            '!startgame'.
+            {t("botConfig.commandPrefixExample")}
           </Typography>
         </Box>
       </CardContent>
@@ -130,10 +129,10 @@ export const BotConfiguration: React.FC = () => {
           disabled={isLoading}
         >
           {isLoading
-            ? "Saving..."
+            ? t("common.saving")
             : isFetching
-            ? "Loading..."
-            : "Save Bot Config"}
+            ? t("common.loading")
+            : t("botConfig.saveConfig")}
         </Button>
       </CardActions>
       {(statusMessage || errorMessage) && (

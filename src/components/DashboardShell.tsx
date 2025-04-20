@@ -1,4 +1,4 @@
-import React, { useState } from "react"; // Removed useEffect, useTheme
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import AppBar from "@mui/material/AppBar";
@@ -16,19 +16,28 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles"; // Keep useTheme for media query
+import { useTheme } from "@mui/material/styles";
+import { useTranslation } from "react-i18next";
+
+// Import theme context
+import { useThemeContext } from "./ThemeProvider";
+
+// Import language switcher
+import LanguageSwitcher from "./LanguageSwitcher";
 
 // Icons from inspiration
 import HomeIcon from "@mui/icons-material/Home";
-import MessageSquareIcon from "@mui/icons-material/Chat"; // Renamed for clarity
+import MessageSquareIcon from "@mui/icons-material/Chat";
 import GameControllerIcon from "@mui/icons-material/SportsEsports";
 import ShieldIcon from "@mui/icons-material/Shield";
-import PieChartIcon from "@mui/icons-material/BarChart"; // Renamed for clarity
+import PieChartIcon from "@mui/icons-material/BarChart";
 import SettingsIcon from "@mui/icons-material/Settings";
 import MenuIcon from "@mui/icons-material/Menu";
-// Icons from original shell for user menu
+// Icons for user menu and theme
 import LogoutIcon from "@mui/icons-material/Logout";
 import UserIcon from "@mui/icons-material/AccountCircle";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 
 const drawerWidth = 260; // From inspiration
 
@@ -50,7 +59,9 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
   user,
   onLogout,
 }) => {
-  const theme = useTheme(); // Keep for media query
+  const theme = useTheme(); // For media query and current theme mode
+  const { themeMode, toggleThemeMode } = useThemeContext(); // Get theme context
+  const { t } = useTranslation(); // Translation hook
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false); // State for temporary mobile drawer
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // State for user menu
@@ -68,12 +79,24 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
   };
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: <HomeIcon /> },
-    { id: "chatbot", label: "Chatbot", icon: <MessageSquareIcon /> },
-    { id: "games", label: "Games", icon: <GameControllerIcon /> },
-    { id: "moderation", label: "Moderation", icon: <ShieldIcon /> },
-    { id: "analytics", label: "Analytics", icon: <PieChartIcon /> },
-    { id: "settings", label: "Settings", icon: <SettingsIcon /> },
+    { id: "dashboard", label: t("navigation.dashboard"), icon: <HomeIcon /> },
+    {
+      id: "chatbot",
+      label: t("navigation.chatbot"),
+      icon: <MessageSquareIcon />,
+    },
+    { id: "games", label: t("navigation.games"), icon: <GameControllerIcon /> },
+    {
+      id: "moderation",
+      label: t("navigation.moderation"),
+      icon: <ShieldIcon />,
+    },
+    {
+      id: "analytics",
+      label: t("navigation.analytics"),
+      icon: <PieChartIcon />,
+    },
+    { id: "settings", label: t("navigation.settings"), icon: <SettingsIcon /> },
   ];
 
   const drawerContent = (
@@ -221,15 +244,30 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             </Typography>
             {/* User Menu / Actions */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Tooltip title="Settings">
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+
+              {/* Theme Toggle Button */}
+              <Tooltip
+                title={
+                  themeMode === "light"
+                    ? t("settings.theme") + ": " + t("settings.dark")
+                    : t("settings.theme") + ": " + t("settings.light")
+                }
+              >
                 <IconButton
                   size="small"
-                  onClick={() => onNavigate("settings")} // Navigate to settings page
+                  onClick={toggleThemeMode}
                   sx={{ bgcolor: "action.hover" }} // Subtle background
                 >
-                  <SettingsIcon fontSize="small" />
+                  {themeMode === "light" ? (
+                    <DarkModeIcon fontSize="small" />
+                  ) : (
+                    <LightModeIcon fontSize="small" />
+                  )}
                 </IconButton>
               </Tooltip>
+              {/* Settings icon removed as requested */}
               <Tooltip title={user.login}>
                 <IconButton
                   onClick={handleMenu}
@@ -275,7 +313,19 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                   <ListItemIcon>
                     <UserIcon fontSize="small" />
                   </ListItemIcon>
-                  Profile (N/A)
+                  {t("common.profile")} (N/A)
+                </MenuItem>
+                <MenuItem onClick={toggleThemeMode}>
+                  <ListItemIcon>
+                    {themeMode === "light" ? (
+                      <DarkModeIcon fontSize="small" />
+                    ) : (
+                      <LightModeIcon fontSize="small" />
+                    )}
+                  </ListItemIcon>
+                  {themeMode === "light"
+                    ? t("settings.dark")
+                    : t("settings.light")}
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
@@ -286,7 +336,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                   <ListItemIcon>
                     <LogoutIcon fontSize="small" />
                   </ListItemIcon>
-                  Logout
+                  {t("common.logout")}
                 </MenuItem>
               </Menu>
             </Box>

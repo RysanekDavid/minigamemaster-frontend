@@ -1,55 +1,110 @@
-import React from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   ThemeProvider as MUIThemeProvider,
   createTheme,
+  Theme,
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
-// Create a theme based on the inspiration code
-const theme = createTheme({
+// Define theme settings
+const getDesignTokens = (mode: "light" | "dark") => ({
   palette: {
-    mode: "light",
-    primary: {
-      main: "#5e35b1", // deep purple
-      light: "#9162e4",
-      dark: "#280680",
-      contrastText: "#ffffff",
-    },
-    secondary: {
-      main: "#00b0ff", // light blue
-      light: "#69e2ff",
-      dark: "#0081cb",
-      contrastText: "#ffffff",
-    },
-    error: {
-      main: "#f44336",
-      light: "#ffcdd2",
-      dark: "#d32f2f",
-    },
-    success: {
-      main: "#4caf50",
-      light: "#c8e6c9",
-      dark: "#2e7d32",
-    },
-    warning: {
-      main: "#ff9800",
-      light: "#ffe0b2",
-      dark: "#ef6c00",
-    },
-    info: {
-      main: "#2196f3",
-      light: "#bbdefb",
-      dark: "#0d47a1",
-    },
-    background: {
-      default: "#f5f5f5",
-      paper: "#ffffff",
-    },
-    text: {
-      primary: "#212121",
-      secondary: "#757575",
-    },
-    divider: "rgba(0, 0, 0, 0.08)",
+    mode,
+    ...(mode === "light"
+      ? {
+          // Light mode palette
+          primary: {
+            main: "#5e35b1", // deep purple
+            light: "#9162e4",
+            dark: "#280680",
+            contrastText: "#ffffff",
+          },
+          secondary: {
+            main: "#00b0ff", // light blue
+            light: "#69e2ff",
+            dark: "#0081cb",
+            contrastText: "#ffffff",
+          },
+          error: {
+            main: "#f44336",
+            light: "#ffcdd2",
+            dark: "#d32f2f",
+          },
+          success: {
+            main: "#4caf50",
+            light: "#c8e6c9",
+            dark: "#2e7d32",
+          },
+          warning: {
+            main: "#ff9800",
+            light: "#ffe0b2",
+            dark: "#ef6c00",
+          },
+          info: {
+            main: "#2196f3",
+            light: "#bbdefb",
+            dark: "#0d47a1",
+          },
+          background: {
+            default: "#f5f5f5",
+            paper: "#ffffff",
+          },
+          text: {
+            primary: "#212121",
+            secondary: "#757575",
+          },
+          divider: "rgba(0, 0, 0, 0.08)",
+        }
+      : {
+          // Dark mode palette
+          primary: {
+            main: "#9147ff", // Twitch purple
+            light: "#a970ff",
+            dark: "#7232c9",
+            contrastText: "#ffffff",
+          },
+          secondary: {
+            main: "#00b0ff",
+            light: "#69e2ff",
+            dark: "#0081cb",
+            contrastText: "#ffffff",
+          },
+          error: {
+            main: "#f44336",
+            light: "#f88078",
+            dark: "#d32f2f",
+          },
+          success: {
+            main: "#4caf50",
+            light: "#7bc67e",
+            dark: "#2e7d32",
+          },
+          warning: {
+            main: "#ff9800",
+            light: "#ffb74d",
+            dark: "#ef6c00",
+          },
+          info: {
+            main: "#2196f3",
+            light: "#64b5f6",
+            dark: "#0d47a1",
+          },
+          background: {
+            default: "#0e0e10", // Twitch dark background
+            paper: "#18181b", // Slightly lighter than background
+          },
+          text: {
+            primary: "#ffffff",
+            secondary: "#adadb8",
+          },
+          divider: "rgba(255, 255, 255, 0.08)",
+        }),
   },
   typography: {
     fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
@@ -81,11 +136,17 @@ const theme = createTheme({
           padding: "8px 16px",
           boxShadow: "none",
           "&:hover": {
-            boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+            boxShadow:
+              mode === "light"
+                ? "0px 2px 4px rgba(0, 0, 0, 0.1)"
+                : "0px 2px 4px rgba(0, 0, 0, 0.3)",
           },
         },
         containedPrimary: {
-          background: "linear-gradient(45deg, #5e35b1 30%, #7c4dff 90%)",
+          background:
+            mode === "light"
+              ? "linear-gradient(45deg, #5e35b1 30%, #7c4dff 90%)"
+              : "linear-gradient(45deg, #7232c9 30%, #9147ff 90%)",
         },
         containedSecondary: {
           background: "linear-gradient(45deg, #00b0ff 30%, #40c4ff 90%)",
@@ -95,11 +156,14 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
+          boxShadow:
+            mode === "light"
+              ? "0px 4px 20px rgba(0, 0, 0, 0.08)"
+              : "0px 4px 20px rgba(0, 0, 0, 0.3)",
           overflow: "visible",
-          height: "100%", // Keep height 100% for consistency if needed
-          display: "flex", // Keep flex display if needed
-          flexDirection: "column", // Keep flex direction if needed
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
         },
       },
     },
@@ -110,7 +174,7 @@ const theme = createTheme({
           "&:last-child": {
             paddingBottom: 24,
           },
-          flexGrow: 1, // Keep flexGrow if needed
+          flexGrow: 1,
         },
       },
     },
@@ -124,7 +188,7 @@ const theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: "#280680", // dark purple
+          backgroundColor: mode === "light" ? "#280680" : "#0e0e10", // dark purple or Twitch dark
           color: "#ffffff",
         },
       },
@@ -157,7 +221,10 @@ const theme = createTheme({
     MuiAvatar: {
       styleOverrides: {
         root: {
-          boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+          boxShadow:
+            mode === "light"
+              ? "0px 2px 4px rgba(0, 0, 0, 0.1)"
+              : "0px 2px 4px rgba(0, 0, 0, 0.3)",
         },
       },
     },
@@ -166,6 +233,9 @@ const theme = createTheme({
         root: {
           "& .MuiOutlinedInput-root": {
             borderRadius: 8,
+            ...(mode === "dark" && {
+              backgroundColor: "rgba(0, 0, 0, 0.15)",
+            }),
           },
         },
       },
@@ -191,7 +261,7 @@ const theme = createTheme({
             color: "#fff",
             "& + .MuiSwitch-track": {
               opacity: 1,
-              backgroundColor: "#5e35b1",
+              backgroundColor: mode === "light" ? "#5e35b1" : "#9147ff",
             },
           },
         },
@@ -202,7 +272,7 @@ const theme = createTheme({
         track: {
           borderRadius: 13,
           opacity: 1,
-          backgroundColor: "#757575",
+          backgroundColor: mode === "light" ? "#757575" : "#555555",
         },
       },
     },
@@ -213,31 +283,82 @@ const theme = createTheme({
         },
       },
     },
-    // Keep other component overrides from the original file if they are still relevant
-    // MuiAppBar: { ... } // Example: Keep if you still need specific AppBar styles not covered by the new theme
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          ...(mode === "dark" && {
+            backgroundImage: "none",
+          }),
+        },
+      },
+    },
   },
+});
+
+// Create context for theme mode
+type ThemeContextType = {
+  themeMode: "light" | "dark";
+  setThemeMode: (mode: "light" | "dark") => void;
+  toggleThemeMode: () => void;
+};
+
+const ThemeContext = createContext<ThemeContextType>({
+  themeMode: "light",
+  setThemeMode: () => {},
+  toggleThemeMode: () => {},
 });
 
 interface CustomThemeProviderProps {
   children: React.ReactNode;
 }
 
-// Simplified Theme Provider using the static theme
+// Theme Provider with state management
 export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({
   children,
 }) => {
+  // Get stored theme preference or default to light
+  const [themeMode, setThemeMode] = useState<"light" | "dark">(() => {
+    const storedTheme = localStorage.getItem("themeMode");
+    return storedTheme === "dark" || storedTheme === "light"
+      ? storedTheme
+      : "light";
+  });
+
+  // Update localStorage when theme changes
+  useEffect(() => {
+    localStorage.setItem("themeMode", themeMode);
+  }, [themeMode]);
+
+  // Toggle between light and dark
+  const toggleThemeMode = () => {
+    setThemeMode((prevMode) => (prevMode === "light" ? "dark" : "light"));
+  };
+
+  // Create the theme object
+  const theme = useMemo(
+    () => createTheme(getDesignTokens(themeMode)),
+    [themeMode]
+  );
+
+  // Context value
+  const contextValue = useMemo(
+    () => ({
+      themeMode,
+      setThemeMode,
+      toggleThemeMode,
+    }),
+    [themeMode]
+  );
+
   return (
-    <MUIThemeProvider theme={theme}>
-      <CssBaseline />
-      {children}
-    </MUIThemeProvider>
+    <ThemeContext.Provider value={contextValue}>
+      <MUIThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+      </MUIThemeProvider>
+    </ThemeContext.Provider>
   );
 };
 
-// Export a dummy context hook to avoid breaking imports, though it won't do anything
-// You might need to refactor components that were using the old context
-export const useThemeContext = () => ({
-  themeMode: "light", // Always light now
-  setThemeMode: () => {},
-  toggleThemeMode: () => {},
-});
+// Hook to use the theme context
+export const useThemeContext = () => useContext(ThemeContext);

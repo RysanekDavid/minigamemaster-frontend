@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next"; // Import translation hook
 import {
   Card,
   CardContent,
@@ -20,6 +21,7 @@ interface BasicStatsData {
 }
 
 export const Analytics: React.FC = () => {
+  const { t } = useTranslation(); // Initialize translation hook
   const [stats, setStats] = useState<BasicStatsData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,8 +63,8 @@ export const Analytics: React.FC = () => {
             <BarChartIcon />
           </Avatar>
         }
-        title="Analytics"
-        subheader="View your channel's game statistics"
+        title={t("analytics.title")}
+        subheader={t("analytics.subtitle")}
       />
       <CardContent>
         {/* Using standard Grid container and item pattern */}
@@ -86,13 +88,13 @@ export const Analytics: React.FC = () => {
                 </Avatar>
                 <Box sx={{ textAlign: "center" }}>
                   <Typography variant="body2" color="text.secondary">
-                    Total Games Played
+                    {t("analytics.totalGamesPlayed")}
                   </Typography>
                   <Typography variant="h3" fontWeight="bold">
                     {loading
-                      ? "..."
+                      ? t("analytics.loading")
                       : error
-                      ? "Error"
+                      ? t("analytics.error")
                       : stats?.totalGamesPlayed ?? 0}
                   </Typography>
                 </Box>
@@ -118,11 +120,15 @@ export const Analytics: React.FC = () => {
                 </Avatar>
                 <Box sx={{ textAlign: "center" }}>
                   <Typography variant="body2" color="text.secondary">
-                    Unique Players Today
+                    {t("analytics.uniquePlayersToday")}
                   </Typography>
                   <Typography variant="h3" fontWeight="bold">
                     {/* Placeholder until API provides this */}
-                    {loading ? "..." : error ? "Error" : "N/A"}
+                    {loading
+                      ? t("analytics.loading")
+                      : error
+                      ? t("analytics.error")
+                      : t("analytics.notAvailable")}
                   </Typography>
                 </Box>
               </Box>
@@ -131,7 +137,7 @@ export const Analytics: React.FC = () => {
         </Grid>
         <Box sx={{ mt: 3, textAlign: "center" }}>
           <Typography variant="body2" color="text.secondary">
-            More detailed analytics coming soon...
+            {t("analytics.moreAnalyticsSoon")}
           </Typography>
         </Box>
       </CardContent>

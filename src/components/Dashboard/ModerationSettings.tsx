@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next"; // Import translation hook
 import {
   Card,
   CardContent,
@@ -31,6 +32,7 @@ export const ModerationSettings: React.FC<ModerationSettingsProps> = ({
   settings,
   onSave,
 }) => {
+  const { t } = useTranslation(); // Initialize translation hook
   const [enableBasicModeration, setEnableBasicModeration] = useState(
     settings.enableBasicModeration
   );
@@ -43,13 +45,13 @@ export const ModerationSettings: React.FC<ModerationSettingsProps> = ({
     setStatusMessage("");
     try {
       await onSave({ enableBasicModeration, bannedWords });
-      setStatusMessage("Moderation settings saved successfully!");
+      setStatusMessage(t("moderation.saveSuccess"));
     } catch (error) {
       // Display the specific error message from the thrown error
       setStatusMessage(
         error instanceof Error
           ? `Error: ${error.message}`
-          : "Failed to save moderation settings."
+          : t("moderation.saveError")
       );
       console.error("Error saving moderation settings:", error);
     } finally {
@@ -65,8 +67,8 @@ export const ModerationSettings: React.FC<ModerationSettingsProps> = ({
             <ShieldIcon />
           </Avatar>
         }
-        title="Moderation Settings"
-        subheader="Configure chat moderation settings"
+        title={t("moderation.title")}
+        subheader={t("moderation.subtitle")}
       />
       <CardContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -79,9 +81,11 @@ export const ModerationSettings: React.FC<ModerationSettingsProps> = ({
             }
             label={
               <Box>
-                <Typography variant="body2">Enable Basic Moderation</Typography>
+                <Typography variant="body2">
+                  {t("moderation.enableBasicModeration")}
+                </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Filter out banned words from chat (Placeholder)
+                  {t("moderation.filterDescription")}
                 </Typography>
               </Box>
             }
@@ -89,7 +93,7 @@ export const ModerationSettings: React.FC<ModerationSettingsProps> = ({
 
           <TextField
             id="banned-words"
-            label="Banned Words (comma-separated)"
+            label={t("moderation.bannedWords")}
             value={bannedWords}
             onChange={(e) => setBannedWords(e.target.value)}
             disabled={!enableBasicModeration}
@@ -108,7 +112,7 @@ export const ModerationSettings: React.FC<ModerationSettingsProps> = ({
           onClick={handleSave}
           disabled={isLoading}
         >
-          {isLoading ? "Saving..." : "Save Moderation Settings"}
+          {isLoading ? t("common.saving") : t("moderation.saveSettings")}
         </Button>
       </CardActions>
       {statusMessage && (
